@@ -36,7 +36,7 @@ Este projeto foi desenvolvido com o objetivo de:
 </a>
 </p>
 
-## 📂 Estrutura do Projeto
+📂 Estrutura do Projeto
 recomenda_ai/
 ├── app.py            # Ponto de entrada da API
 ├── models/
