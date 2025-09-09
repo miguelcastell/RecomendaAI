@@ -48,7 +48,6 @@ recomenda_ai/
 ├── requirements.txt  # Dependências
 └── README.md         # Este arquivo!
 
-
 🚀 Como Executar Localmente
 # 1. Clone o repositório
 git clone https://github.com/seu-usuario/recomenda_ai.git
