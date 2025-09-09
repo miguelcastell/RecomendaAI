@@ -47,8 +47,9 @@ recomenda_ai/
 │   └── db.py         # Conexão com SQLite
 ├── requirements.txt  # Dependências
 └── README.md         # Este arquivo!
-🚀 Como Executar Localmente
 
+
+🚀 Como Executar Localmente
 # 1. Clone o repositório
 git clone https://github.com/seu-usuario/recomenda_ai.git
 cd recomenda_ai
@@ -56,7 +57,7 @@ cd recomenda_ai
 # 2. Crie e ative um ambiente virtual
 python -m venv venv
 source venv/bin/activate      # Linux/Mac
-# ou
+ou
 venv\Scripts\activate         # Windows
 
 # 3. Instale as dependências
