@@ -1,10 +1,6 @@
 RecomendaAí — Sistema Inteligente de Recomendação de Filmes
 "Porque escolher o que assistir nunca foi tão fácil — e tão personalizado."
 
-<p align="center">
-<img src="https://github.com/saga-contabilidade/.github/blob/14368f724c92a70d57e8df52921f54f340a52cc3/banner_org" alt="Banner RecomendaAí" width="1080"/>
-</p>
-
 <p></p>
 <h1 align="center">🤖 Bem-vindo ao RecomendaAí!</h1>
 
