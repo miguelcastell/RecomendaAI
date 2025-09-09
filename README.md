@@ -1,7 +1,4 @@
-RecomendaAí — Sistema Inteligente de Recomendação de Filmes
-"Porque escolher o que assistir nunca foi tão fácil — e tão personalizado."
-
-<p></p>
+p></p>
 <h1 align="center">🤖 Bem-vindo ao RecomendaAí!</h1>
 
 <p align="center">
@@ -52,7 +49,6 @@ recomenda_ai/
 ├── requirements.txt  # Dependências
 └── README.md         # Este arquivo!
 🚀 Como Executar Localmente
-Bash
 
 # 1. Clone o repositório
 git clone https://github.com/seu-usuario/recomenda_ai.git
@@ -70,9 +66,6 @@ pip install -r requirements.txt
 # 4. Execute a aplicação
 python app.py
 
-# 5. Acesse:
-# → Home: http://localhost:5000
-# → Recomendação exemplo: http://localhost:5000/recommend/196
 📈 Próximos Passos
 [ ] Interface web com Jinja2 ou React
 
@@ -88,6 +81,6 @@ python app.py
 Sinta-se à vontade para abrir issues ou pull requests! Toda contribuição que melhore o código, a documentação ou as funcionalidades é bem-vinda.
 
 📬 Contato
-Desenvolvido com 💥 por [Seu Nome] LinkedIn | Email | Portfólio
+Desenvolvido com 💥 por Miguel Mantoan Castellani | LinkedIn | Email
 
 "Não sabe o que assistir hoje? O RecomendaAí sabe."
