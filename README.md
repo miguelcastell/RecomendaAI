@@ -9,20 +9,16 @@
 <a href="#-como-executar-localmente">Rodar Localmente</a>
 </p>
 
-Sobre o Projeto
+# Sobre o Projeto
 O RecomendaAí é um sistema de recomendação de filmes construído em Python, que combina um back-end robusto com técnicas de Machine Learning para oferecer sugestões personalizadas com base nas avaliações dos usuários.
 
-Este projeto foi desenvolvido com o objetivo de:
-
+## Este projeto foi desenvolvido com o objetivo de:
 ✅ Aprimorar habilidades em Python, APIs e bancos de dados
-
 ✅ Aplicar conceitos reais de Machine Learning (especificamente Sistemas de Recomendação)
-
 ✅ Criar uma aplicação completa, do zero, com potencial de evolução e deploy
-
 ✅ Montar um portfólio técnico que demonstra domínio de múltiplas camadas de desenvolvimento
 
-⚙️ Funcionalidades
+## ⚙️ Funcionalidades
 ✅ Sistema de recomendação baseado em filtro colaborativo
 ✅ API REST com Flask para interagir com o modelo
 ✅ Banco de dados SQLite para persistência de avaliações
@@ -38,34 +34,34 @@ Este projeto foi desenvolvido com o objetivo de:
 
 📂 Estrutura do Projeto
 recomenda_ai/
-├── app.py            # Ponto de entrada da API
+├── app.py                  # Ponto de entrada da API
 ├── models/
-│   └── recommendation.py # Lógica do modelo de ML
+│   └── recommendation.py   # Lógica do modelo de ML
 ├── data/
-│   └── ratings.csv   # Dataset de avaliações
+│   └── ratings.csv         # Dataset de avaliações
 ├── database/
-│   └── db.py         # Conexão com SQLite
-├── requirements.txt  # Dependências
-└── README.md         # Este arquivo!
+│   └── db.py               # Conexão com SQLite
+├── requirements.txt        # Dependências
+└── README.md               # Este arquivo!
 
-🚀 Como Executar Localmente
-# 1. Clone o repositório
+# 🚀 Como Executar Localmente
+## 1. Clone o repositório
 git clone https://github.com/seu-usuario/recomenda_ai.git
 cd recomenda_ai
 
-# 2. Crie e ative um ambiente virtual
+## 2. Crie e ative um ambiente virtual
 python -m venv venv
 source venv/bin/activate      # Linux/Mac
 ou
 venv\Scripts\activate         # Windows
 
-# 3. Instale as dependências
+## 3. Instale as dependências
 pip install -r requirements.txt
 
-# 4. Execute a aplicação
+## 4. Execute a aplicação
 python app.py
 
-📈 Próximos Passos
+# 📈 Próximos Passos
 [ ] Interface web com Jinja2 ou React
 
 [ ] Sistema de login de usuários
@@ -76,10 +72,10 @@ python app.py
 
 [ ] Integração com API do TMDB para posters e sinopses
 
-🤝 Contribuições
+# 🤝 Contribuições
 Sinta-se à vontade para abrir issues ou pull requests! Toda contribuição que melhore o código, a documentação ou as funcionalidades é bem-vinda.
 
-📬 Contato
+# 📬 Contato
 Desenvolvido com 💥 por Miguel Mantoan Castellani | LinkedIn | Email
 
 "Não sabe o que assistir hoje? O RecomendaAí sabe."
