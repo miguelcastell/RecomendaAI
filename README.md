@@ -1,4 +1,3 @@
-p></p>
 <h1 align="center">🤖 Bem-vindo ao RecomendaAí!</h1>
 
 <p align="center">
