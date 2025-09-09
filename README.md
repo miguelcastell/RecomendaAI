@@ -25,7 +25,7 @@ O RecomendaAí é um sistema de recomendação de filmes construído em Python, 
 ✅ Dataset real do MovieLens (100k avaliações)
 ✅ Modelo treinado com a biblioteca Surprise (SVD)
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 <p align="left">
 <a href="https://skillicons.dev">
 <img src="https://skillicons.dev/icons?i=python,flask,pandas,numpy,scikitlearn,sqlite&perline=6" />
