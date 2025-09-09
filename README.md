@@ -18,7 +18,7 @@ O RecomendaAí é um sistema de recomendação de filmes construído em Python, 
 ✅ Criar uma aplicação completa, do zero, com potencial de evolução e deploy
 ✅ Montar um portfólio técnico que demonstra domínio de múltiplas camadas de desenvolvimento
 
-## ⚙️ Funcionalidades
+## Funcionalidades
 ✅ Sistema de recomendação baseado em filtro colaborativo
 ✅ API REST com Flask para interagir com o modelo
 ✅ Banco de dados SQLite para persistência de avaliações
