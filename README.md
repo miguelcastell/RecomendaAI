@@ -13,16 +13,24 @@
 O RecomendaAí é um sistema de recomendação de filmes construído em Python, que combina um back-end robusto com técnicas de Machine Learning para oferecer sugestões personalizadas com base nas avaliações dos usuários.
 
 ## Este projeto foi desenvolvido com o objetivo de:
+
 ✅ Aprimorar habilidades em Python, APIs e bancos de dados
+
 ✅ Aplicar conceitos reais de Machine Learning (especificamente Sistemas de Recomendação)
+
 ✅ Criar uma aplicação completa, do zero, com potencial de evolução e deploy
+
 ✅ Montar um portfólio técnico que demonstra domínio de múltiplas camadas de desenvolvimento
 
 ## Funcionalidades
 ✅ Sistema de recomendação baseado em filtro colaborativo
+
 ✅ API REST com Flask para interagir com o modelo
+
 ✅ Banco de dados SQLite para persistência de avaliações
+
 ✅ Dataset real do MovieLens (100k avaliações)
+
 ✅ Modelo treinado com a biblioteca Surprise (SVD)
 
 ## Tecnologias Utilizadas
