@@ -41,16 +41,17 @@ O RecomendaAí é um sistema de recomendação de filmes construído em Python, 
 </p>
 
 📂 Estrutura do Projeto
+
 recomenda_ai/
-├── app.py                  # Ponto de entrada da API
+├── app.py # Ponto de entrada da API
 ├── models/
-│   └── recommendation.py   # Lógica do modelo de ML
+│ └── recommendation.py # Lógica do modelo de ML
 ├── data/
-│   └── ratings.csv         # Dataset de avaliações
+│ └── ratings.csv # Dataset de avaliações
 ├── database/
-│   └── db.py               # Conexão com SQLite
-├── requirements.txt        # Dependências
-└── README.md               # Este arquivo!
+│ └── db.py # Conexão com SQLite
+├── requirements.txt # Dependências
+└── README.md # Este arquivo!
 
 # 🚀 Como Executar Localmente
 ## 1. Clone o repositório
