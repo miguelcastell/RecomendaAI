@@ -5,7 +5,7 @@ import os
 from functools import lru_cache
 
 # Substitua pela sua chave OMDb
-OMDB_API_KEY = os.getenv("OMDB_API_KEY", "sua_chave_aqui")
+OMDB_API_KEY = os.getenv("OMDB_API_KEY", "sua_chave_omdb_aqui")
 
 @lru_cache(maxsize=1000)
 def get_movie_poster(title):
@@ -13,7 +13,7 @@ def get_movie_poster(title):
     Busca o pôster de um filme pelo título usando OMDb API
     Retorna URL da imagem ou imagem padrão se não encontrar
     """
-    if OMDB_API_KEY == "sua_chave_aqui":
+    if OMDB_API_KEY == "sua_chave_omdb_aqui":
         return "https://via.placeholder.com/200x300?text=Sem+Poster"
 
     try:

@@ -5,7 +5,7 @@ import time
 import os
 
 # Substitua pela sua chave TMDB
-TMDB_API_KEY = "sua_chave_aqui"
+TMDB_API_KEY = "sua_chave_tmdb_aqui"
 
 def fetch_popular_movies(page=1):
     """Busca filmes populares em português do Brasil"""

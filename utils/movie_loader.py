@@ -16,7 +16,7 @@ def load_movie_names(data_dir="data"):
         
         return movie_dict
     except FileNotFoundError:
-        print("❌ Arquivo tmdb_movies.json não encontrado. Rode utils/fetch_tmdb_movies.py primeiro!")
+        print("❌ Arquivo tmdb_movies.json não encontrado!")
         return {}
 
 def load_movies_data(data_dir="data"):
