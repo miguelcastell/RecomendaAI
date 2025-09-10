@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecomendAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- CABEÇALHO -->
+        <header class="header">
+            <h1>RecomendAI</h1>
+            <p>Digite 3 filmes que você AMA e descubra suas próximas maratonas!</p>
+        </header>
+
+        <!-- FORMULÁRIO -->
+        <div class="form-section">
+            <form id="movieForm">
+                <input type="hidden" name="user_id" value="9999">
+
+                <!-- FILME 1 -->
+                <div class="movie-input-group">
+                    <label for="movie1">1º Filme Favorito</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="movie1" name="movie_title_1" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
+                        <div class="autocomplete-dropdown" id="dropdown1"></div>
+                        <input type="hidden" name="movie_id_1" id="movie_id_1">
+                        <input type="hidden" name="rating_1" value="5"> <!-- Avaliação fixa -->
+                    </div>
+                </div>
+
+                <!-- FILME 2 -->
+                <div class="movie-input-group">
+                    <label for="movie2">2º Filme Favorito</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="movie2" name="movie_title_2" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
+                        <div class="autocomplete-dropdown" id="dropdown2"></div>
+                        <input type="hidden" name="movie_id_2" id="movie_id_2">
+                        <input type="hidden" name="rating_2" value="5"> <!-- Avaliação fixa -->
+                    </div>
+                </div>
+
+                <!-- FILME 3 -->
+                <div class="movie-input-group">
+                    <label for="movie3">3º Filme Favorito</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="movie3" name="movie_title_3" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
+                        <div class="autocomplete-dropdown" id="dropdown3"></div>
+                        <input type="hidden" name="movie_id_3" id="movie_id_3">
+                        <input type="hidden" name="rating_3" value="5"> <!-- Avaliação fixa -->
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">
+                    Descubra Seus Próximos Filmes!
+                </button>
+            </form>
+        </div>
+
+        <!-- RESULTADOS -->
+        <div id="results" class="results-section" style="display: none;">
+            <h2>📽️ Suas Recomendações Personalizadas</h2>
+            <div class="movies-grid" id="moviesGrid">
+                <!-- Cards serão inseridos aqui via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let moviesList = [];
+        let autocompleteTimeout;
+
+        // Carrega lista de filmes do backend
+        async function loadMovies() {
+            try {
+                const response = await fetch('/get_movies');
+                const movies = await response.json();
+                moviesList = movies;
+            } catch (error) {
+                console.error('Erro ao carregar filmes:', error);
+            }
+        }
+
+        // Função de autocomplete
+        function setupAutocomplete(inputId, dropdownId, hiddenId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            const hiddenInput = document.getElementById(hiddenId);
+
+            input.addEventListener('input', function() {
+                clearTimeout(autocompleteTimeout);
+                
+                if (this.value.length < 2) {
+                    dropdown.innerHTML = '';
+                    dropdown.style.display = 'none';
+                    return;
+                }
+
+                autocompleteTimeout = setTimeout(() => {
+                    const searchTerm = this.value.toLowerCase();
+                    const filteredMovies = moviesList.filter(movie => 
+                        movie.title.toLowerCase().includes(searchTerm)
+                    ).slice(0, 8); // Mostra só os 8 primeiros
+
+                    if (filteredMovies.length > 0) {
+                        dropdown.innerHTML = '';
+                        filteredMovies.forEach(movie => {
+                            const div = document.createElement('div');
+                            div.className = 'autocomplete-item';
+                            div.textContent = movie.title;
+                            div.addEventListener('click', function() {
+                                input.value = movie.title;
+                                hiddenInput.value = movie.movie_id;
+                                dropdown.innerHTML = '';
+                                dropdown.style.display = 'none';
+                            });
+                            dropdown.appendChild(div);
+                        });
+                        dropdown.style.display = 'block';
+                    } else {
+                        dropdown.innerHTML = '<div class="autocomplete-item">Nenhum filme encontrado</div>';
+                        dropdown.style.display = 'block';
+                    }
+                }, 300);
+            });
+
+            // Fecha dropdown ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+
+        // Inicializa autocompletes
+        function initAutocompletes() {
+            setupAutocomplete('movie1', 'dropdown1', 'movie_id_1');
+            setupAutocomplete('movie2', 'dropdown2', 'movie_id_2');
+            setupAutocomplete('movie3', 'dropdown3', 'movie_id_3');
+        }
+
+        // Manipula submit do formulário
+        document.getElementById('movieForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Valida se todos os campos estão preenchidos
+            const inputs = document.querySelectorAll('input[name^="movie_id_"]');
+            let isValid = true;
+            
+            inputs.forEach(input => {
+                if (!input.value) {
+                    isValid = false;
+                    alert('Por favor, selecione todos os filmes da lista de sugestões!');
+                }
+            });
+
+            if (!isValid) return;
+
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/submit_ratings', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Mostra resultados
+                    document.getElementById('results').style.display = 'block';
+                    
+                    // Gera cards
+                    const grid = document.getElementById('moviesGrid');
+                    grid.innerHTML = '';
+                    
+                    result.recommendations.forEach(movie => {
+                        const card = document.createElement('div');
+                        card.className = 'movie-card';
+                        card.innerHTML = `
+                            <img src="${movie.poster}" alt="${movie.title}" 
+                                 onerror="this.src='https://via.placeholder.com/200x300?text=Sem+Poster'">
+                            <div class="movie-title">${movie.title}</div>
+                            <div class="movie-rating">⭐ ${movie.predicted_rating.toFixed(1)}</div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                    
+                    // Scroll suave até os resultados
+                    document.getElementById('results').scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            } catch (error) {
+                alert('Erro ao processar solicitação: ' + error.message);
+            }
+        });
+
+        // Carrega filmes e inicializa quando a página carrega
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMovies().then(initAutocompletes);
+        });
+    </script>
+</body>
+</html>
