@@ -116,11 +116,14 @@ python app.py
 ## 🎥 Demonstração
 
 ### Tela Inicial
-<img width="1902" height="930" alt="image" src="https://github.com/user-attachments/assets/ed09562d-297e-47a1-bf24-c2aad6ddfd75" />
+<img width="1903" height="748" alt="image" src="https://github.com/user-attachments/assets/d0cf8929-7acf-429b-9067-d5628feb4744" />
+
+
 
 
 ### Recomendações Geradas
-![Recomendações](https://via.placeholder.com/800x400/141414/FFFFFF?text=Tela+de+Recomenda%C3%A7%C3%B5es+-+Cards+com+P%C3%B4steres)
+<img width="1614" height="854" alt="image" src="https://github.com/user-attachments/assets/40cfbfdb-eb1b-4d4a-af84-313cc34aaf25" />
+
 
 ---
 
