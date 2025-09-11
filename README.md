@@ -1,5 +1,5 @@
 <h1 align="center">🎬 RecomendAI — Seu Assistente Pessoal de Filmes </h1>
-<h2 align='center“> Porque escolher o que assistir nunca foi tão fácil — e tão personalizado.” </h2>
+"Porque escolher o que assistir nunca foi tão fácil — e tão personalizado.”
 
 <p align="center">
   <em>Seu assistente pessoal pra descobrir filmes incríveis, feito com Python, Machine Learning e muito ❤️.</em>
