@@ -1,91 +1,152 @@
-<h1 align="center">🤖 Bem-vindo ao RecomendaAí!</h1>
+# 🎬 RecomendAI — Seu Assistente Pessoal de Filmes
+
+> *“Porque escolher o que assistir nunca foi tão fácil — e tão personalizado.”*
 
 <p align="center">
-<em>Seu assistente pessoal para descobrir filmes incríveis, feito com Python e Machine Learning.</em>
-<br/>
-<br/>
-<a href="#-sobre-o-projeto">Ver Funcionalidades</a> •
-<a href="#-tecnologias-utilizadas">Ver Tech Stack</a> •
-<a href="#-como-executar-localmente">Rodar Localmente</a>
+  <em>Seu assistente pessoal pra descobrir filmes incríveis, feito com Python, Machine Learning e muito ❤️.</em>
+  <br/>
+  <br/>
+  <a href="#-sobre-o-projeto">Ver Funcionalidades</a> •
+  <a href="#-tecnologias-utilizadas">Ver Tech Stack</a> •
+  <a href="#-como-executar">Rodar Localmente</a>
 </p>
 
-# Sobre o Projeto
-O RecomendaAí é um sistema de recomendação de filmes construído em Python, que combina um back-end robusto com técnicas de Machine Learning para oferecer sugestões personalizadas com base nas avaliações dos usuários.
+---
 
-## Este projeto foi desenvolvido com o objetivo de:
+## 🚀 Sobre o Projeto
 
-✅ Aprimorar habilidades em Python, APIs e bancos de dados
+O **RecomendAI** é um sistema inteligente de recomendação de filmes que combina **Python, Machine Learning e uma interface web moderna** para oferecer sugestões personalizadas com base nos seus filmes favoritos.
 
-✅ Aplicar conceitos reais de Machine Learning (especificamente Sistemas de Recomendação)
+> ✅ **Sem complicações:** Você só digita 3 filmes que AMA — o sistema faz o resto.  
+> ✅ **Filmes em português:** Dataset atualizado com filmes brasileiros e internacionais recentes.  
+> ✅ **Design premium:** Interface inspirada em plataformas de streaming, com autocomplete inteligente.  
+> ✅ **100% funcional:** Do back-end em Flask ao front-end responsivo — tudo integrado e pronto pra uso.
 
-✅ Criar uma aplicação completa, do zero, com potencial de evolução e deploy
+---
 
-✅ Montar um portfólio técnico que demonstra domínio de múltiplas camadas de desenvolvimento
+## ⚙️ Funcionalidades
 
-## Funcionalidades
-✅ Sistema de recomendação baseado em filtro colaborativo
+✅ **Autocomplete inteligente** — digite e veja sugestões em tempo real  
+✅ **Recomendações personalizadas** — baseadas nos seus filmes favoritos  
+✅ **Dataset em português** — filmes brasileiros e internacionais atualizados (via TMDB)  
+✅ **Interface responsiva** — funciona perfeitamente em desktop e mobile  
+✅ **Sistema de notas automático** — você só escolhe filmes, o sistema assume que você AMA todos (nota 5 ⭐)  
+✅ **Recomendação por gênero** — o sistema identifica seus gêneros preferidos e recomenda filmes alinhados
 
-✅ API REST com Flask para interagir com o modelo
+---
 
-✅ Banco de dados SQLite para persistência de avaliações
+## 🛠️ Tecnologias Utilizadas
 
-✅ Dataset real do MovieLens (100k avaliações)
-
-✅ Modelo treinado com a biblioteca Surprise (SVD)
-
-## Tecnologias Utilizadas
 <p align="left">
-<a href="https://skillicons.dev">
-<img src="https://skillicons.dev/icons?i=python,flask,pandas,numpy,scikitlearn,sqlite&perline=6" />
-</a>
+  <a href="https://skillicons.dev">
+    <img src="https://skillicons.dev/icons?i=python,flask,html,css,js,json,git&perline=7" />
+  </a>
 </p>
 
-📂 Estrutura do Projeto
+---
 
-recomenda_ai/
+## 📂 Estrutura do Projeto
 
-├── app.py # Ponto de entrada da API
+```
+RecomendaAI/
+├── app.py                  # Ponto de entrada da API (Flask)
 ├── models/
-│ └── recommendation.py # Lógica do modelo de ML
+│   └── recommendation.py   # Lógica de recomendação por gênero
 ├── data/
-│ └── ratings.csv # Dataset de avaliações
-├── database/
-│ └── db.py # Conexão com SQLite
-├── requirements.txt # Dependências
-└── README.md # Este arquivo!
+│   └── tmdb_movies_large.json  # Dataset de +600 filmes em português-BR
+├── utils/
+│   ├── fetch_tmdb_movies.py    # Script pra gerar/atualizar o dataset
+│   ├── movie_loader.py         # Carrega nomes e dados dos filmes
+│   └── movie_poster.py         # Busca pôsteres via TMDB (sem API key!)
+├── frontend/
+│   ├── index.html          # Interface principal (autocomplete + cards)
+│   └── style.css           # Estilo moderno e responsivo
+├── requirements.txt        # Dependências
+├── runtime.txt             # Força Python 3.11 (pra evitar erros)
+└── README.md               # Este arquivo!
+```
 
-# 🚀 Como Executar Localmente
-## 1. Clone o repositório
-git clone https://github.com/seu-usuario/recomenda_ai.git
-cd recomenda_ai
+---
 
-## 2. Crie e ative um ambiente virtual
+## 🚀 Como Executar Localmente
+
+### 1. Clone o repositório
+
+```bash
+git clone https://github.com/miguelcastell/RecomendaAI.git
+cd RecomendaAI
+```
+
+### 2. Crie e ative o ambiente virtual
+
+```bash
 python -m venv venv
 source venv/bin/activate      # Linux/Mac
-ou
-venv\Scripts\activate         # Windows
+# ou
+venv\Scriptsctivate         # Windows
+```
 
-## 3. Instale as dependências
+### 3. Instale as dependências
+
+```bash
 pip install -r requirements.txt
+```
 
-## 4. Execute a aplicação
+### 4. (Opcional) Gere/atualize o dataset de filmes
+
+> ⚠️ Você precisa de uma chave API gratuita do TMDB.
+
+```bash
+# Substitua "sua_chave_aqui" no utils/fetch_tmdb_movies.py
+python utils/fetch_tmdb_movies.py
+```
+
+### 5. Execute a aplicação
+
+```bash
 python app.py
+```
 
-# 📈 Próximos Passos
-[ ] Interface web com Jinja2 ou React
+### 6. Acesse no navegador
 
-[ ] Sistema de login de usuários
+👉 http://localhost:5000
 
-[ ] Recomendação híbrida (conteúdo + colaborativo)
+---
 
-[ ] Deploy com Docker + Render/Railway
+## 🎥 Demonstração
 
-[ ] Integração com API do TMDB para posters e sinopses
+### Tela Inicial
+![Tela Inicial](https://via.placeholder.com/800x400/141414/FFFFFF?text=Tela+Inicial+-+Autocomplete+de+Filmes)
 
-# 🤝 Contribuições
-Sinta-se à vontade para abrir issues ou pull requests! Toda contribuição que melhore o código, a documentação ou as funcionalidades é bem-vinda.
+### Recomendações Geradas
+![Recomendações](https://via.placeholder.com/800x400/141414/FFFFFF?text=Tela+de+Recomenda%C3%A7%C3%B5es+-+Cards+com+P%C3%B4steres)
 
-# 📬 Contato
-Desenvolvido com 💥 por Miguel Mantoan Castellani | LinkedIn | Email
+---
 
-"Não sabe o que assistir hoje? O RecomendaAí sabe."
+## 📈 Próximos Passos (Futuro)
+
+- [ ] Implementar recomendação por gênero e ano  
+- [ ] Adicionar mais filmes brasileiros específicos  
+- [ ] Fazer deploy na nuvem (Railway, Vercel)  
+- [ ] Criar sistema de histórico de recomendações  
+- [ ] Adicionar compartilhamento de listas  
+- [ ] Migrar de SQLite para PostgreSQL  
+- [ ] Adicionar sistema de login (JWT)
+
+---
+
+## 🤝 Contribuições
+
+Sinta-se à vontade para abrir *issues* ou *pull requests*! Toda contribuição que melhore o código, a documentação ou as funcionalidades é bem-vinda.
+
+---
+
+## 📬 Contato
+
+Desenvolvido com 💥 por **Miguel Castell**  
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/seu-perfil)  
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/miguelcastell)
+
+---
+
+> *“Não sabe o que assistir hoje? O RecomendAI sabe.”*
