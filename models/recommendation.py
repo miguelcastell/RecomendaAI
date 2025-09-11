@@ -2,62 +2,104 @@
 import random
 import json
 import os
+from collections import Counter
 
 class MovieRecommender:
     def __init__(self, data_path="data/tmdb_movies.json"):
         self.data_path = data_path
         self.movies = self.load_movies()
-        print(f"🎬 Inicializado com {len(self.movies)} filmes disponíveis")
+        print(f"🎬 Inicializado com {len(self.movies)} filmes")
     
     def load_movies(self):
-        """Carrega filmes do JSON ou usa fallback"""
+        """Carrega filmes com fallback garantido"""
         try:
             if os.path.exists(self.data_path):
                 with open(self.data_path, 'r', encoding='utf-8') as f:
-                    movies = json.load(f)
-                    if len(movies) > 0:
-                        print(f"✅ Carregou {len(movies)} filmes do arquivo {self.data_path}")
-                        return movies
-                    else:
-                        print("⚠️ Arquivo JSON vazio")
-            else:
-                print(f"⚠️ Arquivo não encontrado: {self.data_path}")
+                    content = f.read().strip()
+                    if content:
+                        movies = json.loads(content)
+                        # Garante que todos os filmes têm gêneros
+                        for movie in movies:
+                            if 'genres' not in movie:
+                                movie['genres'] = []
+                        if len(movies) > 0:
+                            print("✅ Carregou filmes do JSON")
+                            return movies
+            print("⚠️ JSON vazio ou inválido")
         except Exception as e:
             print(f"❌ Erro ao carregar JSON: {e}")
         
-        # Fallback - filmes hardcoded
-        print("🔄 Usando dataset de fallback")
+        # Fallback com gêneros
+        print("🔄 Usando fallback com gêneros")
         return [
-            {"id": 278, "title": "Um Sonho de Liberdade", "vote_average": 9.3, "poster_path": "/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg"},
-            {"id": 238, "title": "O Poderoso Chefão", "vote_average": 9.2, "poster_path": "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg"},
-            {"id": 424, "title": "Batman: O Cavaleiro das Trevas", "vote_average": 9.0, "poster_path": "/qJ2tW6WMUDux911r6m7haRef0WH.jpg"},
-            {"id": 597, "title": "Pulp Fiction: Tempo de Violência", "vote_average": 8.9, "poster_path": "/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg"},
-            {"id": 122, "title": "Forrest Gump: O Contador de Histórias", "vote_average": 8.8, "poster_path": "/arw2vcBveWOVZr6pxd9XTd1TdQa.jpg"},
-            {"id": 121, "title": "Gladiador", "vote_average": 8.5, "poster_path": "/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg"},
-            {"id": 680, "title": "Clube da Luta", "vote_average": 8.8, "poster_path": "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg"},
-            {"id": 120, "title": "A Lista de Schindler", "vote_average": 8.6, "poster_path": "/sF1U4EUQS8YHUYjNl3pMGNIQyr0.jpg"},
-            {"id": 572151, "title": "Homem-Aranha: Através do Aranhaverso", "vote_average": 8.7, "poster_path": "/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg"},
-            {"id": 634649, "title": "Homem-Aranha: Sem Volta Para Casa", "vote_average": 8.4, "poster_path": "/uJYYizSuA9Y3DCs0qS4qWvHfZg4.jpg"}
+            {"id": 1, "title": "Homem-Aranha: Sem Volta Para Casa", "vote_average": 8.4, "poster_path": "/uJYYizSuA9Y3DCs0qS4qWvHfZg4.jpg", "genres": ["Ação", "Aventura", "Ficção Científica"]},
+            {"id": 2, "title": "Vingadores: Ultimato", "vote_average": 8.7, "poster_path": "/or06FN3Dka5tukK1e9sl16pB3iy.jpg", "genres": ["Ação", "Aventura", "Ficção Científica"]},
+            {"id": 3, "title": "Tropa de Elite 2", "vote_average": 8.1, "poster_path": "/tjZaFgCk3GRK3K9m7k1J9Q9x9XH.jpg", "genres": ["Ação", "Drama", "Crime"]},
+            {"id": 4, "title": "Cidade de Deus", "vote_average": 8.6, "poster_path": "/lT4l5tD7ohRJjNL1iZB5KXNkxQN.jpg", "genres": ["Drama", "Crime"]},
+            {"id": 5, "title": "O Auto da Compadecida", "vote_average": 8.5, "poster_path": "/b3T0V86iF9C5YsYRqPjWZ2Fk7XQ.jpg", "genres": ["Comédia", "Drama", "Fantasia"]},
+            {"id": 6, "title": "Parasita", "vote_average": 8.6, "poster_path": "/7IiTTgloJzvGI1TAYymCfbfl3vF.jpg", "genres": ["Drama", "Thriller"]},
+            {"id": 7, "title": "Coringa", "vote_average": 8.4, "poster_path": "/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg", "genres": ["Crime", "Drama", "Thriller"]},
+            {"id": 8, "title": "Interestelar", "vote_average": 8.6, "poster_path": "/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", "genres": ["Aventura", "Drama", "Ficção Científica"]},
+            {"id": 9, "title": "Django Livre", "vote_average": 8.4, "poster_path": "/k0lNOD4mOKk4kCQKlK7lGgJzBpX.jpg", "genres": ["Drama", "Faroeste"]},
+            {"id": 10, "title": "Matrix", "vote_average": 8.7, "poster_path": "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg", "genres": ["Ação", "Ficção Científica"]}
         ]
     
-    def recommend_for_user(self, user_id, n=15):
-        """Recomenda filmes populares"""
+    def recommend_for_user(self, user_id, n=15, selected_movie_ids=None):
+        """Recomenda filmes baseado nos gêneros dos filmes selecionados"""
         if not self.movies:
-            print("❌ Nenhum filme disponível para recomendação")
             return []
         
-        print(f"🎲 Gerando {n} recomendações aleatórias...")
-        movies_copy = self.movies.copy()
-        random.shuffle(movies_copy)
-        recommendations = []
+        # Se não tiver filmes selecionados, recomenda aleatório
+        if not selected_movie_ids:
+            movies_copy = self.movies.copy()
+            random.shuffle(movies_copy)
+            recommendations = []
+            for movie in movies_copy[:n]:
+                title = movie.get('title', f"Filme {movie['id']}")
+                poster = f"https://image.tmdb.org/t/p/w500{movie.get('poster_path', '')}" if movie.get('poster_path') else "https://placehold.co/200x300/141414/FFFFFF?font=roboto&text=Sem+Poster"
+                recommendations.append((
+                    movie['id'],
+                    movie.get('vote_average', 7.5),
+                    title,
+                    poster
+                ))
+            return recommendations
         
-        for movie in movies_copy[:n]:
+        # Pega os gêneros dos filmes selecionados
+        selected_genres = []
+        for movie_id in selected_movie_ids:
+            for movie in self.movies:
+                if movie['id'] == movie_id:
+                    selected_genres.extend(movie.get('genres', []))
+                    break
+        
+        if not selected_genres:
+            # Fallback se não encontrar gêneros
+            return self.recommend_for_user(user_id, n)
+        
+        # Conta frequência dos gêneros
+        genre_counter = Counter(selected_genres)
+        top_genres = [genre for genre, count in genre_counter.most_common(3)]
+        
+        print(f"🎯 Gêneros preferidos: {top_genres}")
+        
+        # Filtra filmes que têm pelo menos um dos gêneros preferidos
+        matching_movies = []
+        for movie in self.movies:
+            movie_genres = movie.get('genres', [])
+            if any(genre in movie_genres for genre in top_genres):
+                matching_movies.append(movie)
+        
+        if not matching_movies:
+            # Fallback se não encontrar filmes
+            matching_movies = self.movies
+        
+        # Embaralha e pega n filmes
+        random.shuffle(matching_movies)
+        recommendations = []
+        for movie in matching_movies[:n]:
             title = movie.get('title', f"Filme {movie['id']}")
-            poster = "https://placehold.co/200x300/141414/FFFFFF?font=roboto&text=Sem+Poster"
-            
-            if movie.get('poster_path'):
-                poster = f"https://image.tmdb.org/t/p/w500{movie['poster_path']}"
-            
+            poster = f"https://image.tmdb.org/t/p/w500{movie.get('poster_path', '')}" if movie.get('poster_path') else "https://placehold.co/200x300/141414/FFFFFF?font=roboto&text=Sem+Poster"
             recommendations.append((
                 movie['id'],
                 movie.get('vote_average', 7.5),
@@ -65,5 +107,4 @@ class MovieRecommender:
                 poster
             ))
         
-        print(f"✅ Gerou {len(recommendations)} recomendações")
         return recommendations

@@ -15,7 +15,7 @@
 * {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
+    /* box-sizing: border-box; */
 }
 
 body {
@@ -91,7 +91,7 @@ body {
     margin: 0 0 15px 0;
 }
 .autocomplete-container input {
-    width: 200%;
+    width: 203%;
     max-width: 4000px;
     padding: 10px 10px;
     background: var(--input-bg);

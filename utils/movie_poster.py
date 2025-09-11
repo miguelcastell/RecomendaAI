@@ -1,42 +1,27 @@
 # utils/movie_poster.py
-import requests
-import time
 import os
 from functools import lru_cache
-
-# Substitua pela sua chave OMDb
-OMDB_API_KEY = os.getenv("OMDB_API_KEY", "sua_chave_omdb_aqui")
 
 @lru_cache(maxsize=1000)
 def get_movie_poster(title):
     """
-    Busca o pôster de um filme pelo título usando OMDb API
-    Retorna URL da imagem ou imagem padrão se não encontrar
+    Busca o pôster de um filme pelo título (USANDO APENAS TMDB)
     """
-    if OMDB_API_KEY == "sua_chave_omdb_aqui":
-        return "https://via.placeholder.com/200x300?text=Sem+Poster"
-
     try:
-        # Remove ano entre parênteses: "Toy Story (1995)" → "Toy Story"
-        clean_title = title.split(" (")[0] if " (" in title else title
+        from utils.movie_loader import load_movies_data
+        movies = load_movies_data()
         
-        url = f"http://www.omdbapi.com/"
-        params = {
-            't': clean_title,
-            'apikey': OMDB_API_KEY
-        }
-        
-        response = requests.get(url, params=params, timeout=5)
-        data = response.json()
-        
-        if data.get('Response') == 'True' and data.get('Poster') != 'N/A':
-            return data['Poster']
-        else:
-            return "https://via.placeholder.com/200x300?text=Poster+Indispon%C3%ADvel"
-            
+        for movie in movies:
+            if movie['title'] == title:
+                if movie.get('poster_path'):
+                    # URL pública do TMDB - NÃO PRECISA DE CHAVE!
+                    return f"https://image.tmdb.org/t/p/w500{movie['poster_path']}"
+                else:
+                    # Fallback se o filme não tiver pôster
+                    return "https://placehold.co/200x300/141414/FFFFFF?font=roboto&text=Sem+Poster"
+        # Fallback se o filme não for encontrado
+        return "https://placehold.co/200x300/141414/FFFFFF?font=roboto&text=Filme+Não+Encontrado"
     except Exception as e:
         print(f"Erro ao buscar pôster para '{title}': {e}")
-        return "https://via.placeholder.com/200x300?text=Erro"
-
-# Cache para evitar requisições repetidas
-POSTER_CACHE = {}
+        # Fallback em caso de erro
+        return "https://placehold.co/200x300/141414/FFFFFF?font=roboto&text=Erro"
