@@ -116,7 +116,8 @@ python app.py
 ## 🎥 Demonstração
 
 ### Tela Inicial
-<img width="1889" height="732" alt="image" src="https://github.com/user-attachments/assets/60212bc6-cb9f-45f3-bcb2-1682fdc31ce2" />
+<img width="1889" height="732" alt="image" src="https://github.com/user-attachments/assets/1de54446-95b5-4a59-901e-9b23797c9d65" />
+
 
 
 
