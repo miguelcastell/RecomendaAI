@@ -116,7 +116,8 @@ python app.py
 ## 🎥 Demonstração
 
 ### Tela Inicial
-![Tela Inicial](https://via.placeholder.com/800x400/141414/FFFFFF?text=Tela+Inicial+-+Autocomplete+de+Filmes)
+<img width="1902" height="930" alt="image" src="https://github.com/user-attachments/assets/ed09562d-297e-47a1-bf24-c2aad6ddfd75" />
+
 
 ### Recomendações Geradas
 ![Recomendações](https://via.placeholder.com/800x400/141414/FFFFFF?text=Tela+de+Recomenda%C3%A7%C3%B5es+-+Cards+com+P%C3%B4steres)
