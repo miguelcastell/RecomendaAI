@@ -1,7 +1,8 @@
+<p align="center">
 # 🎬 RecomendAI — Seu Assistente Pessoal de Filmes
 
 > *“Porque escolher o que assistir nunca foi tão fácil — e tão personalizado.”*
-
+</p>
 <p align="center">
   <em>Seu assistente pessoal pra descobrir filmes incríveis, feito com Python, Machine Learning e muito ❤️.</em>
   <br/>
