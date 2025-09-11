@@ -1,4 +1,4 @@
-<h1 align="center">#🎬 RecomendAI — Seu Assistente Pessoal de Filmes </h1>
+<h1 align="center">🎬 RecomendAI — Seu Assistente Pessoal de Filmes </h1>
 <p align="center">
 > *“Porque escolher o que assistir nunca foi tão fácil — e tão personalizado.”*
 </p>
