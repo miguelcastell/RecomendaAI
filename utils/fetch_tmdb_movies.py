@@ -1,10 +1,8 @@
-# utils/fetch_tmdb_movies.py
 import requests
 import json
 import time
 import os
 
-# Substitua pela sua chave TMDB
 import os
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "chave_fallback_para_desenvolvimento_local")
 
@@ -41,7 +39,6 @@ def generate_large_dataset():
     all_movies = []
     movie_ids = set()
     
-    # IDs de gêneros populares
     genres = {
         28: "Ação",
         12: "Aventura", 
@@ -65,7 +62,6 @@ def generate_large_dataset():
     
     print("🔍 Buscando filmes em português-BR...")
     
-    # Busca 3 páginas por gênero (cerca de 60 filmes por gênero)
     for genre_id, genre_name in genres.items():
         print(f"🎬 Buscando filmes de {genre_name}...")
         for page in range(1, 4):
@@ -80,10 +76,8 @@ def generate_large_dataset():
                 movie_ids.add(movie_id)
                 details = fetch_movie_details(movie_id)
                 
-                # Extrai gêneros
                 genres_list = [genre['name'] for genre in details.get('genres', [])]
                 
-                # Cria entrada do dataset
                 movie_entry = {
                     'id': movie_id,
                     'title': details.get('title', movie.get('title', 'Sem título')),
@@ -98,11 +92,10 @@ def generate_large_dataset():
                 }
                 
                 all_movies.append(movie_entry)
-                time.sleep(0.1)  # Evita rate limiting
+                time.sleep(0.1)  
             
             time.sleep(0.3)
     
-    # Salva dataset
     with open('data/tmdb_movies_large.json', 'w', encoding='utf-8') as f:
         json.dump(all_movies, f, ensure_ascii=False, indent=2)
     

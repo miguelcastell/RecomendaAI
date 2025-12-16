@@ -1,4 +1,3 @@
-# utils/movie_loader.py
 import json
 import os
 

@@ -1,4 +1,3 @@
-/* style.css - Estilo Premium CineMatch (VERSÃO COMPACTA) */
 :root {
     --primary: #e50914;
     --dark: #141414;
@@ -15,7 +14,6 @@
 * {
     margin: 0;
     padding: 0;
-    /* box-sizing: border-box; */
 }
 
 body {
@@ -83,7 +81,6 @@ body {
     text-align: left;
 }
 
-/* ESTILO DO AUTOCOMPLETE */
 .autocomplete-container {
     position: relative;
     width: 100%;
@@ -284,7 +281,6 @@ select:focus {
     border-top: 3px solid #ff0000;
 }
 
-/* RESPONSIVO */
 @media (max-width: 768px) {
     .header h1 {
         font-size: 2.2rem;

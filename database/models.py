@@ -1,4 +1,3 @@
-# database/models.py
 from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -17,7 +16,6 @@ class UserRating(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     movie_title = Column(String, nullable=True)
 
-# Configuração do banco
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./recomendai.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

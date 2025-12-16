@@ -1,4 +1,3 @@
-# models/recommendation.py
 import random
 import json
 import os
@@ -18,7 +17,6 @@ class MovieRecommender:
                     content = f.read().strip()
                     if content:
                         movies = json.loads(content)
-                        # Garante que todos os filmes têm gêneros
                         for movie in movies:
                             if 'genres' not in movie:
                                 movie['genres'] = []
@@ -29,7 +27,6 @@ class MovieRecommender:
         except Exception as e:
             print(f"❌ Erro ao carregar JSON: {e}")
         
-        # Fallback com gêneros
         print("🔄 Usando fallback com gêneros")
         return [
             {"id": 1, "title": "Homem-Aranha: Sem Volta Para Casa", "vote_average": 8.4, "poster_path": "/uJYYizSuA9Y3DCs0qS4qWvHfZg4.jpg", "genres": ["Ação", "Aventura", "Ficção Científica"]},
@@ -49,7 +46,6 @@ class MovieRecommender:
         if not self.movies:
             return []
         
-        # Se não tiver filmes selecionados, recomenda aleatório
         if not selected_movie_ids:
             movies_copy = self.movies.copy()
             random.shuffle(movies_copy)
@@ -65,7 +61,6 @@ class MovieRecommender:
                 ))
             return recommendations
         
-        # Pega os gêneros dos filmes selecionados
         selected_genres = []
         for movie_id in selected_movie_ids:
             for movie in self.movies:
@@ -74,16 +69,13 @@ class MovieRecommender:
                     break
         
         if not selected_genres:
-            # Fallback se não encontrar gêneros
             return self.recommend_for_user(user_id, n)
         
-        # Conta frequência dos gêneros
         genre_counter = Counter(selected_genres)
         top_genres = [genre for genre, count in genre_counter.most_common(3)]
         
         print(f"🎯 Gêneros preferidos: {top_genres}")
         
-        # Filtra filmes que têm pelo menos um dos gêneros preferidos
         matching_movies = []
         for movie in self.movies:
             movie_genres = movie.get('genres', [])
@@ -91,10 +83,8 @@ class MovieRecommender:
                 matching_movies.append(movie)
         
         if not matching_movies:
-            # Fallback se não encontrar filmes
             matching_movies = self.movies
         
-        # Embaralha e pega n filmes
         random.shuffle(matching_movies)
         recommendations = []
         for movie in matching_movies[:n]:
