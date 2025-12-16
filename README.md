@@ -1,4 +1,6 @@
 <h1 align="left">🎬 RecomendAI — Seu Assistente Pessoal de Filmes </h1>
+![Status](https://img.shields.io/badge/status-funcional-success)
+![Python](https://img.shields.io/badge/python-3.11-blue)
 "Porque escolher o que assistir nunca foi tão fácil — e tão personalizado.”
 
 <p align="left">
