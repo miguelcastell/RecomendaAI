@@ -61,9 +61,12 @@ pip install -r requirements.txt
 ```
 
 ### 2. Treinamento do Modelo
-Para atualizar o "cérebro" do sistema:
+Para gerar ou atualizar o "cérebro" do sistema:
 1. Abra o arquivo `research/train_model.ipynb`.
-2. Execute todas as células para gerar os novos arquivos de pesos em `models/weights/`.
+2. Execute todas as células para gerar os arquivos de pesos necessários em `models/weights/`.
+
+> [!IMPORTANT]
+> Como a pasta `models/weights/` está adicionada ao `.gitignore` (para não subir arquivos binários ao GitHub), você **precisa** executar o notebook pelo menos uma vez antes de rodar o servidor `app.py` pela primeira vez para gerar os arquivos de peso.
 
 ### 3. Execução do Servidor
 ```bash

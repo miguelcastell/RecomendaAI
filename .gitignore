@@ -76,3 +76,10 @@ Procfile
 .ipynb_checkpoints
 
 
+
+# ==============================
+# MODELOS TREINADOS
+# ==============================
+models/weights/
+
+
