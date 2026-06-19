@@ -19,7 +19,12 @@ def home_page():
 def get_movies():
     try:
         movie_list = [
-            {"movie_id": movie["id"], "title": movie["title"]}
+            {
+                "movie_id": movie["id"],
+                "title": movie["title"],
+                "poster_path": movie.get("poster_path", ""),
+                "genres": movie.get("genres", [])
+            }
             for movie in recommender.movies
         ]
         movie_list.sort(key=lambda x: x["title"])

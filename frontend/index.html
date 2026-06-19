@@ -54,6 +54,44 @@
             </form>
         </div>
 
+        <!-- ========== SEÇÃO DE EXPLORAR CATÁLOGO ========== -->
+        <div class="catalog-section">
+            <div class="catalog-header">
+                <h2 class="catalog-title">🎬 Explorar Catálogo</h2>
+                <p class="catalog-subtitle">Pesquise qualquer filme do nosso acervo</p>
+            </div>
+            <div class="catalog-search-wrapper">
+                <span class="search-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </span>
+                <input
+                    type="text"
+                    id="catalogSearch"
+                    class="catalog-search-input"
+                    placeholder="Pesquisar filme no catálogo..."
+                    autocomplete="off"
+                >
+                <button class="catalog-clear-btn" id="catalogClearBtn" title="Limpar pesquisa">✕</button>
+            </div>
+
+            <div class="genre-pills-wrapper" id="genrePills">
+                <!-- Pills gerados dinamicamente pelo JS -->
+            </div>
+
+            <div id="catalogStatus" class="catalog-status"></div>
+
+            <div class="catalog-scroll-area" id="catalogResults">
+                <div class="catalog-placeholder">
+                    <span class="catalog-placeholder-icon">⏳</span>
+                    <p>Carregando filmes...</p>
+                </div>
+            </div>
+        </div>
+        <!-- ========== FIM EXPLORAR CATÁLOGO ========== -->
+
         <div id="results" class="results-section" style="display: none;">
             <h2>📽️ Suas Recomendações Personalizadas</h2>
             <div class="movies-grid" id="moviesGrid">
@@ -64,6 +102,7 @@
     <script>
         let moviesList = [];
         let autocompleteTimeout;
+        let catalogSearchTimeout;
 
         async function loadMovies() {
             try {
@@ -130,6 +169,128 @@
             setupAutocomplete('movie3', 'dropdown3', 'movie_id_3');
         }
 
+        // ========== CATÁLOGO DE PESQUISA ==========
+        let activeGenre = null;
+
+        function applyFilters() {
+            const query = document.getElementById('catalogSearch').value.trim().toLowerCase();
+
+            let filtered = moviesList;
+
+            if (activeGenre) {
+                filtered = filtered.filter(m =>
+                    Array.isArray(m.genres) && m.genres.includes(activeGenre)
+                );
+            }
+
+            if (query.length > 0) {
+                filtered = filtered.filter(m =>
+                    m.title.toLowerCase().includes(query)
+                );
+            }
+
+            renderCatalogCards(filtered, query, activeGenre);
+        }
+
+        function renderCatalogCards(movies, query = '', genre = null) {
+            const resultsContainer = document.getElementById('catalogResults');
+            const statusEl = document.getElementById('catalogStatus');
+
+            resultsContainer.innerHTML = '';
+
+            if (movies.length === 0) {
+                statusEl.textContent = '';
+                resultsContainer.innerHTML = `
+                    <div class="catalog-placeholder">
+                        <span class="catalog-placeholder-icon">😕</span>
+                        <p>Nenhum filme encontrado${genre ? ` em <strong>${genre}</strong>` : ''}${query ? ` para "<strong>${query}</strong>"` : ''}</p>
+                    </div>`;
+                return;
+            }
+
+            statusEl.textContent = `${movies.length} filme${movies.length !== 1 ? 's' : ''} encontrado${movies.length !== 1 ? 's' : ''}`;
+
+            movies.forEach((movie, i) => {
+                const poster = movie.poster_path
+                    ? `https://image.tmdb.org/t/p/w185${movie.poster_path}`
+                    : 'https://placehold.co/48x72/222/aaa?text=?&font=roboto';
+
+                const card = document.createElement('div');
+                card.className = 'catalog-card';
+                card.style.animationDelay = `${Math.min(i * 10, 350)}ms`;
+                card.innerHTML = `
+                    <div class="catalog-card-poster-wrap">
+                        <img
+                            src="${poster}"
+                            alt="${movie.title}"
+                            onerror="this.src='https://placehold.co/48x72/222/aaa?text=?&font=roboto'"
+                            class="catalog-card-poster"
+                        >
+                    </div>
+                    <div class="catalog-card-info">
+                        <span class="catalog-card-title">${movie.title}</span>
+                        ${Array.isArray(movie.genres) && movie.genres.length ? `<span class="catalog-card-genres">${movie.genres.join(' · ')}</span>` : ''}
+                    </div>
+                `;
+                resultsContainer.appendChild(card);
+            });
+        }
+
+        function buildGenrePills() {
+            const allGenres = [...new Set(moviesList.flatMap(m => m.genres || []))].sort();
+            const wrapper = document.getElementById('genrePills');
+            wrapper.innerHTML = '';
+
+            // Pill "Todos"
+            const allPill = document.createElement('button');
+            allPill.className = 'genre-pill active';
+            allPill.textContent = 'Todos';
+            allPill.dataset.genre = '';
+            wrapper.appendChild(allPill);
+
+            allGenres.forEach(genre => {
+                const pill = document.createElement('button');
+                pill.className = 'genre-pill';
+                pill.textContent = genre;
+                pill.dataset.genre = genre;
+                wrapper.appendChild(pill);
+            });
+
+            wrapper.addEventListener('click', function(e) {
+                const pill = e.target.closest('.genre-pill');
+                if (!pill) return;
+
+                wrapper.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+
+                activeGenre = pill.dataset.genre || null;
+                applyFilters();
+            });
+        }
+
+        function setupCatalogSearch() {
+            const searchInput = document.getElementById('catalogSearch');
+            const clearBtn = document.getElementById('catalogClearBtn');
+
+            buildGenrePills();
+            applyFilters();
+
+            searchInput.addEventListener('input', function() {
+                clearTimeout(catalogSearchTimeout);
+                const query = this.value.trim();
+                clearBtn.style.display = query.length > 0 ? 'flex' : 'none';
+                catalogSearchTimeout = setTimeout(applyFilters, 220);
+            });
+
+            clearBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                clearBtn.style.display = 'none';
+                applyFilters();
+                searchInput.focus();
+            });
+        }
+        // ========== FIM CATÁLOGO ==========
+
         document.getElementById('movieForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -185,7 +346,10 @@
         });
 
         document.addEventListener('DOMContentLoaded', function() {
-            loadMovies().then(initAutocompletes);
+            loadMovies().then(() => {
+                initAutocompletes();
+                setupCatalogSearch();
+            });
         });
     </script>
 </body>
