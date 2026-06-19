@@ -43,7 +43,8 @@ RecomendaAI/
 │   ├── recommendation.py   # Motor Híbrido (SRI + ML)
 │   └── weights/            # Modelos treinados (.pkl)
 ├── research/
-│   └── train_model.ipynb   # Notebook de treinamento e experimentos
+│   ├── train_model.ipynb   # Notebook de treinamento e experimentos
+│   └── evaluate_sri.ipynb  # Notebook de avaliação de acurácia e eficiência do SRI
 ├── database/
 │   └── models.py           # Esquema do banco de dados (User Ratings)
 ├── data/
@@ -73,6 +74,11 @@ Para gerar ou atualizar o "cérebro" do sistema:
 python app.py
 ```
 Acesse: `http://localhost:5000`
+
+### 4. Avaliação de Métricas (Acurácia e Eficiência)
+Para mensurar a qualidade e a performance do Sistema de Recuperação de Informação (SRI):
+1. Abra o notebook `research/evaluate_sri.ipynb`.
+2. Execute o código de teste para calcular a **Precisão em K (Precision@K)** (que afere a eficácia cruzando gêneros semelhantes) e o **Tempo Médio de Resposta** por consulta (que mede a latência em milissegundos).
 
 ---
 
