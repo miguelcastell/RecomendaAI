@@ -11,104 +11,280 @@
     <div class="container">
         <header class="header">
             <h1>RecomendAI</h1>
-            <p>Digite 3 filmes que você AMA e descubra suas próximas maratonas!</p>
+            <p>Ache aquele filme que você não lembra o nome — ou descubra o que assistir a seguir.</p>
         </header>
 
-        <div class="form-section">
-            <form id="movieForm">
-                <input type="hidden" name="user_id" value="9999">
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="find">🔎 Achar um filme</button>
+            <button class="tab-btn" data-tab="pick3">🎯 Escolher 3 filmes</button>
+            <button class="tab-btn" data-tab="recommend">🍿 Letterboxd</button>
+        </nav>
 
-                <div class="movie-input-group">
-                    <label for="movie1">1º Filme Favorito</label>
-                    <div class="autocomplete-container">
-                        <input type="text" id="movie1" name="movie_title_1" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
-                        <div class="autocomplete-dropdown" id="dropdown1"></div>
-                        <input type="hidden" name="movie_id_1" id="movie_id_1">
-                        <input type="hidden" name="rating_1" value="5">
+        <!-- ABA 1: BUSCA -->
+        <section id="tab-find" class="tab-panel active">
+            <div class="form-section">
+                <div class="search-row">
+                    <input type="text" id="searchQuery" class="text-input"
+                           placeholder="Trecho da sinopse ou nome do filme (ex: brinquedos que ganham vida)">
+                    <button id="searchBtn" class="btn-primary">Buscar</button>
+                </div>
+                <div class="search-row people-row">
+                    <div class="autocomplete-wrap">
+                        <input type="text" id="directorInput" class="text-input" autocomplete="off"
+                               placeholder="🎬 Diretor (opcional)">
+                        <div class="autocomplete-dropdown" id="directorDropdown"></div>
+                    </div>
+                    <div class="autocomplete-wrap">
+                        <input type="text" id="actorInput" class="text-input" autocomplete="off"
+                               placeholder="⭐ Ator (opcional)">
+                        <div class="autocomplete-dropdown" id="actorDropdown"></div>
                     </div>
                 </div>
+                <div class="filters">
+                    <label>Gênero
+                        <select id="filterGenre"><option value="">Todos</option></select>
+                    </label>
+                    <label>Idioma
+                        <input type="text" id="filterLang" class="mini-input" placeholder="ex: en, pt, fr">
+                    </label>
+                    <label>Ano de
+                        <input type="number" id="filterYearMin" class="mini-input" placeholder="1950">
+                    </label>
+                    <label>até
+                        <input type="number" id="filterYearMax" class="mini-input" placeholder="2025">
+                    </label>
+                </div>
+                <p class="hint">Combine o que souber: escolha diretor e/ou ator e descreva um pouco a história — tudo soma para afunilar a busca.</p>
+            </div>
 
-                <div class="movie-input-group">
-                    <label for="movie2">2º Filme Favorito</label>
-                    <div class="autocomplete-container">
-                        <input type="text" id="movie2" name="movie_title_2" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
-                        <div class="autocomplete-dropdown" id="dropdown2"></div>
-                        <input type="hidden" name="movie_id_2" id="movie_id_2">
-                        <input type="hidden" name="rating_2" value="5"> 
+            <div id="searchStatus" class="status"></div>
+            <div class="movies-grid" id="searchGrid"></div>
+        </section>
+
+        <!-- ABA 2: ESCOLHER 3 FILMES -->
+        <section id="tab-pick3" class="tab-panel">
+            <div class="form-section">
+                <p class="hint">Selecione 3 filmes que você ama para receber recomendações personalizadas!</p>
+                <form id="movieForm">
+                    <input type="hidden" name="user_id" value="9999">
+
+                    <div class="movie-input-group">
+                        <label for="movie1">1º Filme Favorito</label>
+                        <div class="autocomplete-container">
+                            <input type="text" id="movie1" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
+                            <div class="autocomplete-dropdown" id="dropdown1"></div>
+                            <input type="hidden" name="movie_id_1" id="movie_id_1">
+                        </div>
                     </div>
-                </div>
 
-                <div class="movie-input-group">
-                    <label for="movie3">3º Filme Favorito</label>
-                    <div class="autocomplete-container">
-                        <input type="text" id="movie3" name="movie_title_3" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
-                        <div class="autocomplete-dropdown" id="dropdown3"></div>
-                        <input type="hidden" name="movie_id_3" id="movie_id_3">
-                        <input type="hidden" name="rating_3" value="5">
+                    <div class="movie-input-group">
+                        <label for="movie2">2º Filme Favorito</label>
+                        <div class="autocomplete-container">
+                            <input type="text" id="movie2" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
+                            <div class="autocomplete-dropdown" id="dropdown2"></div>
+                            <input type="hidden" name="movie_id_2" id="movie_id_2">
+                        </div>
                     </div>
-                </div>
 
-                <button type="submit" class="btn-primary">
-                    Descubra Seus Próximos Filmes!
-                </button>
-            </form>
-        </div>
+                    <div class="movie-input-group">
+                        <label for="movie3">3º Filme Favorito</label>
+                        <div class="autocomplete-container">
+                            <input type="text" id="movie3" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
+                            <div class="autocomplete-dropdown" id="dropdown3"></div>
+                            <input type="hidden" name="movie_id_3" id="movie_id_3">
+                        </div>
+                    </div>
 
-        <!-- ========== SEÇÃO DE EXPLORAR CATÁLOGO ========== -->
-        <div class="catalog-section">
-            <div class="catalog-header">
-                <h2 class="catalog-title">🎬 Explorar Catálogo</h2>
-                <p class="catalog-subtitle">Pesquise qualquer filme do nosso acervo</p>
-            </div>
-            <div class="catalog-search-wrapper">
-                <span class="search-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                </span>
-                <input
-                    type="text"
-                    id="catalogSearch"
-                    class="catalog-search-input"
-                    placeholder="Pesquisar filme no catálogo..."
-                    autocomplete="off"
-                >
-                <button class="catalog-clear-btn" id="catalogClearBtn" title="Limpar pesquisa">✕</button>
+                    <button type="submit" class="btn-primary">
+                        Descubra Seus Próximos Filmes!
+                    </button>
+                </form>
             </div>
 
-            <div class="genre-pills-wrapper" id="genrePills">
-                <!-- Pills gerados dinamicamente pelo JS -->
-            </div>
+            <div id="pick3Status" class="status"></div>
+            <div class="movies-grid" id="pick3Grid"></div>
+        </section>
 
-            <div id="catalogStatus" class="catalog-status"></div>
-
-            <div class="catalog-scroll-area" id="catalogResults">
-                <div class="catalog-placeholder">
-                    <span class="catalog-placeholder-icon">⏳</span>
-                    <p>Carregando filmes...</p>
+        <!-- ABA 3: LETTERBOXD -->
+        <section id="tab-recommend" class="tab-panel">
+            <div class="form-section">
+                <p class="hint">
+                    Exporte suas notas no Letterboxd em
+                    <strong>Settings → Import & Export → Export your data</strong>
+                    e envie o <code>ratings.csv</code> de dentro do .zip.
+                </p>
+                <div class="search-row">
+                    <input type="file" id="ratingsFile" accept=".csv" class="file-input">
+                    <button id="recommendBtn" class="btn-primary">Recomendar</button>
                 </div>
             </div>
-        </div>
-        <!-- ========== FIM EXPLORAR CATÁLOGO ========== -->
-
-        <div id="results" class="results-section" style="display: none;">
-            <h2>📽️ Suas Recomendações Personalizadas</h2>
-            <div class="movies-grid" id="moviesGrid">
-            </div>
-        </div>
+            <div id="recommendStatus" class="status"></div>
+            <div class="movies-grid" id="recommendGrid"></div>
+        </section>
     </div>
 
     <script>
+        // ---------- Abas ----------
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ---------- Carregar gêneros ----------
+        fetch('/genres').then(r => r.json()).then(genres => {
+            const sel = document.getElementById('filterGenre');
+            genres.forEach(g => {
+                const o = document.createElement('option');
+                o.value = g; o.textContent = g; sel.appendChild(o);
+            });
+        }).catch(() => {});
+
+        // ---------- Utilitários ----------
+        function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&','<':'<','>':'>','"':'"'}[c])); }
+        const SIGNAL_CLASS = { keyword: 'sig-tema', synopsis: 'sig-sinopse', lexical: 'sig-termos', name: 'sig-nome' };
+
+        function ratingBadge(movie) {
+            if (movie.predicted_rating != null)
+                return `<div class="movie-rating">⭐ ${movie.predicted_rating.toFixed(2)} previsto</div>`;
+            if (movie.vote_average)
+                return `<div class="movie-rating">⭐ ${movie.vote_average.toFixed(1)}</div>`;
+            return `<div class="movie-rating">—</div>`;
+        }
+
+        function explanationBlock(e) {
+            if (!e) return '';
+            const sigs = (e.signals || []).filter(s => s.share > 0.001);
+            const segs = sigs.map(s =>
+                `<span class="seg ${SIGNAL_CLASS[s.signal] || ''}" style="width:${(s.share*100).toFixed(0)}%"
+                       title="${esc(s.label)} ${(s.share*100).toFixed(0)}%"></span>`).join('');
+            const legend = sigs.map(s => `${esc(s.label)} ${(s.share*100).toFixed(0)}%`).join(' · ');
+            const chips = (e.matched_keywords || []).map(k => `<span class="chip chip-kw">${esc(k)}</span>`).join('')
+                + (e.matched_title_terms || []).map(t => `<span class="chip chip-title">${esc(t)}</span>`).join('');
+            const cons = e.constraints
+                ? Object.entries(e.constraints).map(([role, name]) =>
+                    `<span class="chip chip-person">${role === 'director' ? '🎬' : '⭐'} ${esc(name)}</span>`).join('')
+                : '';
+            return `
+                <div class="explain">
+                    <div class="explain-rel" title="Relevância relativa a esta busca">
+                        <div class="explain-rel-track"><div class="explain-rel-fill" style="width:${e.relevance}%"></div></div>
+                        <span class="explain-rel-num">${e.relevance} · #${e.position}</span>
+                    </div>
+                    ${segs ? `<div class="sig-bar">${segs}</div><div class="sig-legend">${legend}</div>` : ''}
+                    ${(chips || cons) ? `<div class="explain-chips">${cons}${chips}</div>` : ''}
+                </div>`;
+        }
+
+        function renderGrid(gridId, movies) {
+            const grid = document.getElementById(gridId);
+            grid.innerHTML = '';
+            movies.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                const year = m.release_year ? ` (${m.release_year})` : '';
+                const overview = m.overview ? `<div class="movie-overview">${esc(m.overview)}</div>` : '';
+                const poster = m.poster || 'https://placehold.co/342x513/141414/e50914?text=Sem+P%C3%B4ster';
+                card.innerHTML = `
+                    <div class="poster-wrap">
+                        <img src="${poster}" alt="${esc(m.title)}"
+                             onerror="this.parentNode.classList.add('no-poster'); this.remove();">
+                        <span class="poster-fallback">${esc(m.title)}</span>
+                    </div>
+                    <div class="movie-title">${esc(m.title)}${year}</div>
+                    ${ratingBadge(m)}
+                    ${explanationBlock(m.explanation)}
+                    ${overview}`;
+                grid.appendChild(card);
+            });
+        }
+
+        // ========== ABA 1: BUSCA ==========
+        function setupPersonAutocomplete(inputId, dropdownId, role) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            let timer;
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                const q = input.value.trim();
+                if (q.length < 2) { dropdown.style.display = 'none'; return; }
+                timer = setTimeout(async () => {
+                    try {
+                        const people = await (await fetch(`/people?q=${encodeURIComponent(q)}&role=${role}`)).json();
+                        dropdown.innerHTML = '';
+                        if (!people.length) { dropdown.style.display = 'none'; return; }
+                        people.forEach(p => {
+                            const div = document.createElement('div');
+                            div.className = 'autocomplete-item';
+                            div.innerHTML = `<span>${esc(p.name)}</span><small>${p.credits} filmes</small>`;
+                            div.addEventListener('click', () => {
+                                input.value = p.name;
+                                dropdown.style.display = 'none';
+                            });
+                            dropdown.appendChild(div);
+                        });
+                        dropdown.style.display = 'block';
+                    } catch (e) { dropdown.style.display = 'none'; }
+                }, 250);
+            });
+            document.addEventListener('click', e => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target))
+                    dropdown.style.display = 'none';
+            });
+        }
+        setupPersonAutocomplete('directorInput', 'directorDropdown', 'director');
+        setupPersonAutocomplete('actorInput', 'actorDropdown', 'actor');
+
+        async function doSearch() {
+            const status = document.getElementById('searchStatus');
+            const body = {
+                query: document.getElementById('searchQuery').value.trim(),
+                director: document.getElementById('directorInput').value.trim(),
+                actor: document.getElementById('actorInput').value.trim(),
+                genre: document.getElementById('filterGenre').value,
+                language: document.getElementById('filterLang').value.trim(),
+                year_min: document.getElementById('filterYearMin').value,
+                year_max: document.getElementById('filterYearMax').value,
+                n: 18,
+            };
+            if (!body.query && !body.director && !body.actor) {
+                status.textContent = 'Descreva o filme ou escolha um diretor/ator.'; return;
+            }
+            status.textContent = 'Buscando...';
+            try {
+                const res = await fetch('/search', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (!res.ok) { status.textContent = data.error || 'Erro na busca.'; return; }
+                const bits = [];
+                if (data.director) bits.push(`diretor: ${data.director}`);
+                if (data.actor) bits.push(`ator: ${data.actor}`);
+                status.textContent = data.count
+                    ? `${data.count} resultado(s)` + (bits.length ? ` · ${bits.join(' · ')}` : '')
+                    : 'Nada encontrado.';
+                renderGrid('searchGrid', data.results);
+            } catch (e) { status.textContent = 'Erro: ' + e.message; }
+        }
+        document.getElementById('searchBtn').addEventListener('click', doSearch);
+        ['searchQuery', 'directorInput', 'actorInput'].forEach(id => {
+            document.getElementById(id).addEventListener('keydown', e => {
+                if (e.key === 'Enter') doSearch();
+            });
+        });
+
+        // ========== ABA 2: ESCOLHER 3 FILMES ==========
         let moviesList = [];
         let autocompleteTimeout;
-        let catalogSearchTimeout;
 
         async function loadMovies() {
             try {
                 const response = await fetch('/get_movies');
-                const movies = await response.json();
-                moviesList = movies;
+                moviesList = await response.json();
             } catch (error) {
                 console.error('Erro ao carregar filmes:', error);
             }
@@ -121,7 +297,7 @@
 
             input.addEventListener('input', function() {
                 clearTimeout(autocompleteTimeout);
-                
+
                 if (this.value.length < 2) {
                     dropdown.innerHTML = '';
                     dropdown.style.display = 'none';
@@ -130,7 +306,7 @@
 
                 autocompleteTimeout = setTimeout(() => {
                     const searchTerm = this.value.toLowerCase();
-                    const filteredMovies = moviesList.filter(movie => 
+                    const filteredMovies = moviesList.filter(movie =>
                         movie.title.toLowerCase().includes(searchTerm)
                     ).slice(0, 8);
 
@@ -163,192 +339,78 @@
             });
         }
 
-        function initAutocompletes() {
-            setupAutocomplete('movie1', 'dropdown1', 'movie_id_1');
-            setupAutocomplete('movie2', 'dropdown2', 'movie_id_2');
-            setupAutocomplete('movie3', 'dropdown3', 'movie_id_3');
-        }
-
-        // ========== CATÁLOGO DE PESQUISA ==========
-        let activeGenre = null;
-
-        function applyFilters() {
-            const query = document.getElementById('catalogSearch').value.trim().toLowerCase();
-
-            let filtered = moviesList;
-
-            if (activeGenre) {
-                filtered = filtered.filter(m =>
-                    Array.isArray(m.genres) && m.genres.includes(activeGenre)
-                );
-            }
-
-            if (query.length > 0) {
-                filtered = filtered.filter(m =>
-                    m.title.toLowerCase().includes(query)
-                );
-            }
-
-            renderCatalogCards(filtered, query, activeGenre);
-        }
-
-        function renderCatalogCards(movies, query = '', genre = null) {
-            const resultsContainer = document.getElementById('catalogResults');
-            const statusEl = document.getElementById('catalogStatus');
-
-            resultsContainer.innerHTML = '';
-
-            if (movies.length === 0) {
-                statusEl.textContent = '';
-                resultsContainer.innerHTML = `
-                    <div class="catalog-placeholder">
-                        <span class="catalog-placeholder-icon">😕</span>
-                        <p>Nenhum filme encontrado${genre ? ` em <strong>${genre}</strong>` : ''}${query ? ` para "<strong>${query}</strong>"` : ''}</p>
-                    </div>`;
-                return;
-            }
-
-            statusEl.textContent = `${movies.length} filme${movies.length !== 1 ? 's' : ''} encontrado${movies.length !== 1 ? 's' : ''}`;
-
-            movies.forEach((movie, i) => {
-                const poster = movie.poster_path
-                    ? `https://image.tmdb.org/t/p/w185${movie.poster_path}`
-                    : 'https://placehold.co/48x72/222/aaa?text=?&font=roboto';
-
-                const card = document.createElement('div');
-                card.className = 'catalog-card';
-                card.style.animationDelay = `${Math.min(i * 10, 350)}ms`;
-                card.innerHTML = `
-                    <div class="catalog-card-poster-wrap">
-                        <img
-                            src="${poster}"
-                            alt="${movie.title}"
-                            onerror="this.src='https://placehold.co/48x72/222/aaa?text=?&font=roboto'"
-                            class="catalog-card-poster"
-                        >
-                    </div>
-                    <div class="catalog-card-info">
-                        <span class="catalog-card-title">${movie.title}</span>
-                        ${Array.isArray(movie.genres) && movie.genres.length ? `<span class="catalog-card-genres">${movie.genres.join(' · ')}</span>` : ''}
-                    </div>
-                `;
-                resultsContainer.appendChild(card);
-            });
-        }
-
-        function buildGenrePills() {
-            const allGenres = [...new Set(moviesList.flatMap(m => m.genres || []))].sort();
-            const wrapper = document.getElementById('genrePills');
-            wrapper.innerHTML = '';
-
-            // Pill "Todos"
-            const allPill = document.createElement('button');
-            allPill.className = 'genre-pill active';
-            allPill.textContent = 'Todos';
-            allPill.dataset.genre = '';
-            wrapper.appendChild(allPill);
-
-            allGenres.forEach(genre => {
-                const pill = document.createElement('button');
-                pill.className = 'genre-pill';
-                pill.textContent = genre;
-                pill.dataset.genre = genre;
-                wrapper.appendChild(pill);
-            });
-
-            wrapper.addEventListener('click', function(e) {
-                const pill = e.target.closest('.genre-pill');
-                if (!pill) return;
-
-                wrapper.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
-                pill.classList.add('active');
-
-                activeGenre = pill.dataset.genre || null;
-                applyFilters();
-            });
-        }
-
-        function setupCatalogSearch() {
-            const searchInput = document.getElementById('catalogSearch');
-            const clearBtn = document.getElementById('catalogClearBtn');
-
-            buildGenrePills();
-            applyFilters();
-
-            searchInput.addEventListener('input', function() {
-                clearTimeout(catalogSearchTimeout);
-                const query = this.value.trim();
-                clearBtn.style.display = query.length > 0 ? 'flex' : 'none';
-                catalogSearchTimeout = setTimeout(applyFilters, 220);
-            });
-
-            clearBtn.addEventListener('click', function() {
-                searchInput.value = '';
-                clearBtn.style.display = 'none';
-                applyFilters();
-                searchInput.focus();
-            });
-        }
-        // ========== FIM CATÁLOGO ==========
-
         document.getElementById('movieForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            const inputs = document.querySelectorAll('input[name^="movie_id_"]');
+            const status = document.getElementById('pick3Status');
+
+            const inputs = ['movie_id_1', 'movie_id_2', 'movie_id_3'];
             let isValid = true;
-            
-            inputs.forEach(input => {
+
+            inputs.forEach(id => {
+                const input = document.getElementById(id);
                 if (!input.value) {
                     isValid = false;
-                    alert('Por favor, selecione todos os filmes da lista de sugestões!');
                 }
             });
 
-            if (!isValid) return;
+            if (!isValid) {
+                status.textContent = 'Por favor, selecione todos os filmes da lista de sugestões!';
+                return;
+            }
 
             const formData = new FormData(this);
-            
+
             try {
                 const response = await fetch('/submit_ratings', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
-                    document.getElementById('results').style.display = 'block';
-                    
-                    const grid = document.getElementById('moviesGrid');
-                    grid.innerHTML = '';
-                    
-                    result.recommendations.forEach(movie => {
-                        const card = document.createElement('div');
-                        card.className = 'movie-card';
-                        card.innerHTML = `
-                            <img src="${movie.poster}" alt="${movie.title}" 
-                                 onerror="this.src='https://via.placeholder.com/200x300?text=Sem+Poster'">
-                            <div class="movie-title">${movie.title}</div>
-                            <div class="movie-rating">⭐ ${movie.predicted_rating.toFixed(1)}</div>
-                        `;
-                        grid.appendChild(card);
-                    });
-                    
-                    document.getElementById('results').scrollIntoView({
-                        behavior: 'smooth'
-                    });
+                    status.textContent = result.message || 'Recomendações geradas!';
+                    renderGrid('pick3Grid', result.recommendations);
+                    document.getElementById('tab-pick3').scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    alert('Erro: ' + result.error);
+                    status.textContent = result.error || result.message || 'Erro ao processar.';
+                    if (result.recommendations && result.recommendations.length > 0) {
+                        renderGrid('pick3Grid', result.recommendations);
+                    }
                 }
             } catch (error) {
-                alert('Erro ao processar solicitação: ' + error.message);
+                status.textContent = 'Erro ao processar solicitação: ' + error.message;
             }
         });
 
+        // ========== ABA 3: RECOMENDAR LETTERBOXD ==========
+        document.getElementById('recommendBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('ratingsFile');
+            const status = document.getElementById('recommendStatus');
+            if (!fileInput.files.length) { status.textContent = 'Selecione o ratings.csv.'; return; }
+            status.textContent = 'Analisando seu perfil...';
+            const fd = new FormData();
+            fd.append('ratings', fileInput.files[0]);
+            try {
+                const res = await fetch('/recommend', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (!res.ok) {
+                    status.textContent = data.error || 'Erro ao recomendar.';
+                    document.getElementById('recommendGrid').innerHTML = '';
+                    return;
+                }
+                status.textContent = `${data.matched}/${data.total_rows} filmes casados `
+                    + `(${Math.round(data.match_rate*100)}%) · estratégia: ${data.method}`;
+                renderGrid('recommendGrid', data.recommendations);
+            } catch (e) { status.textContent = 'Erro: ' + e.message; }
+        });
+
+        // ========== INIT ==========
         document.addEventListener('DOMContentLoaded', function() {
             loadMovies().then(() => {
-                initAutocompletes();
-                setupCatalogSearch();
+                setupAutocomplete('movie1', 'dropdown1', 'movie_id_1');
+                setupAutocomplete('movie2', 'dropdown2', 'movie_id_2');
+                setupAutocomplete('movie3', 'dropdown3', 'movie_id_3');
             });
         });
     </script>
