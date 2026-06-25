@@ -20,16 +20,6 @@ from core import catalog, posters
 app = Flask(__name__, static_folder="frontend", template_folder="frontend")
 
 
-def _with_poster(item: dict) -> dict:
-    item = dict(item)
-    tid = item.get("tmdb_id") or item.get("movie_id")
-    if tid:
-        item["poster"] = posters.get_poster(int(tid), item.get("title"))
-    else:
-        item["poster"] = posters.get_poster(0, item.get("title"))
-    return item
-
-
 # =========================================================================
 # ROTA PRINCIPAL
 # =========================================================================
@@ -94,7 +84,7 @@ def search():
         "director": director,
         "actor": actor,
         "count": len(results),
-        "results": [_with_poster(r) for r in results],
+        "results": posters.attach(results),
     })
 
 
@@ -133,32 +123,65 @@ def get_movies():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/popular")
+def popular():
+    """Filmes mais famosos (por nº de votos) para a seleção visual — com pôster.
+
+    Fama ≈ vote_count (quantas pessoas avaliaram); filtramos por vote_average>=6.5
+    para não trazer famoso-porém-ruim. Paginação simples via `offset`."""
+    try:
+        n = max(1, min(int(request.args.get("n", 48)), 120))
+        offset = max(0, int(request.args.get("offset", 0)))
+    except (TypeError, ValueError):
+        n, offset = 48, 0
+    cat = catalog.get_catalog()
+    ranked = sorted(
+        (m for m in cat.values() if (m.get("vote_average") or 0) >= 6.5),
+        key=lambda m: (m.get("vote_count") or 0), reverse=True,
+    )[offset:offset + n]
+    items = [{"tmdb_id": m["tmdb_id"], "title": m.get("title"),
+              "release_year": m.get("release_year")} for m in ranked]
+    return jsonify(posters.attach(items))
+
+
 # =========================================================================
 # ROTA: SUBMIT RATINGS (3 filmes favoritos — do projeto original)
 # =========================================================================
 
 @app.route("/submit_ratings", methods=["POST"])
 def submit_ratings():
-    """Recomenda filmes baseado em 3 filmes favoritos selecionados pelo usuário."""
+    """Recomenda a partir de filmes favoritos selecionados (qualquer quantidade).
+
+    Aceita JSON {movie_ids: [...]} ou form (movie_ids repetido / movie_id_1..N).
+    Usa o fluxo de perfil (vetor de gosto por conteúdo + colaborativo) e devolve
+    também o perfil traçado."""
     try:
-        movie_ids_raw = []
-        for i in range(1, 4):
-            mid = request.form.get(f"movie_id_{i}")
-            if mid and mid.isdigit():
-                movie_ids_raw.append(int(mid))
+        ids: list[int] = []
+        data = request.get_json(silent=True) or {}
+        raw = data.get("movie_ids") if isinstance(data.get("movie_ids"), list) else None
+        if raw is None:
+            raw = request.form.getlist("movie_ids") or [
+                request.form.get(f"movie_id_{i}") for i in range(1, 11)
+            ]
+        for x in raw:
+            try:
+                if x is not None and int(x) > 0:
+                    ids.append(int(x))
+            except (TypeError, ValueError):
+                continue
+        ids = list(dict.fromkeys(ids))  # dedup preservando ordem
+        if not ids:
+            return jsonify({"error": "Selecione ao menos um filme."}), 400
 
-        if not movie_ids_raw:
-            return jsonify({"error": "Nenhum filme selecionado"}), 400
+        from recommender.profile import recommend_from_profile
 
-        # Usar o CollaborativeRecommender no modo item-item
-        from recommender.collaborative import get_recommender
-
-        user_ratings = [(mid, 5.0) for mid in movie_ids_raw]
-        recs = get_recommender().recommend(user_ratings, n=15)
-
+        detail = [{"tmdb_id": mid, "rating": 5.0, "name": None, "year": None, "review": ""}
+                  for mid in ids]
+        result = recommend_from_profile(detail, n=15)
         return jsonify({
             "message": "Recomendações personalizadas geradas!",
-            "recommendations": [_with_poster(r) for r in recs],
+            "profile": result["profile"],
+            "recommendations": posters.attach(result["recommendations"]),
         })
 
     except RuntimeError as e:
@@ -188,16 +211,17 @@ def recommend():
 
     try:
         from recommender.letterboxd import import_ratings
-        from recommender.collaborative import get_recommender
+        from recommender.profile import recommend_from_profile
 
-        imported = import_ratings(file, resolver="fuzzy")
+        imported = import_ratings(file, resolver="auto")
         if not imported.matched:
             return jsonify({
                 "error": "Nenhum filme do seu ratings.csv foi encontrado no catálogo.",
                 "total_rows": imported.total_rows,
                 "matched": 0,
             }), 422
-        recs = get_recommender().recommend(imported.matched, n=n)
+        # Perfil de gosto: vetor de conteúdo (embeddings) + resumo + colaborativo.
+        result = recommend_from_profile(imported.matched_detail, n=n)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 503
 
@@ -206,8 +230,9 @@ def recommend():
         "matched": len(imported.matched),
         "match_rate": round(imported.match_rate, 3),
         "unmatched_count": len(imported.unmatched),
-        "method": recs[0]["method"] if recs else None,
-        "recommendations": [_with_poster(r) for r in recs],
+        "method": "perfil (conteúdo + colaborativo)",
+        "profile": result["profile"],
+        "recommendations": posters.attach(result["recommendations"]),
     })
 
 
@@ -221,5 +246,5 @@ def health():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5001))
     app.run(debug=True, host="0.0.0.0", port=port)

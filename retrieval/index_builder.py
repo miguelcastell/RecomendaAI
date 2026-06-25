@@ -41,7 +41,16 @@ _LEGACY_PATHS = [
     os.path.join(INDEX_DIR, "tfidf_matrix.npz"),
 ]
 
-DEFAULT_EMBED_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
+DEFAULT_EMBED_MODEL = "intfloat/multilingual-e5-large"
+
+
+def embed_prefixes(model_name: str) -> tuple[str, str]:
+    """(prefixo_consulta, prefixo_passagem) exigidos pelo modelo. Família E5 usa
+    'query: ' / 'passage: '; demais modelos não usam prefixo."""
+    name = (model_name or "").lower()
+    if "e5" in name:
+        return "query: ", "passage: "
+    return "", ""
 
 # Fallback caso o corpus do NLTK nÃ£o esteja disponÃ­vel (mantÃ©m o sistema
 # funcionando offline). Lista enxuta de stopwords PT.
@@ -70,8 +79,61 @@ def portuguese_stopwords() -> list[str]:
         return list(_PT_STOPWORDS_FALLBACK)
 
 
+# Sinônimos PT para keywords de atributo da TMDB (que vêm em inglês). Quando o
+# filme tem a keyword à esquerda, injetamos o texto PT à direita no documento
+# temático — assim uma consulta PT ("preto e branco", "mudo") casa o atributo.
+_ATTR_KEYWORD_PT = {
+    "black and white": "preto e branco",
+    "silent film": "filme mudo cinema mudo sem diálogo",
+    "based on a true story": "baseado em fatos reais história real",
+    "based on novel or book": "baseado em livro adaptação literária",
+    "based on comic": "baseado em quadrinhos hq",
+    "stop motion": "stop motion animação quadro a quadro",
+    "anime": "anime animação japonesa",
+    "found footage": "found footage filmagem encontrada",
+    "mockumentary": "falso documentário",
+    "cult film": "filme cult",
+    "remake": "refilmagem remake",
+    "sequel": "continuação sequência",
+    "based on video game": "baseado em videogame jogo",
+}
+
+
+def _attribute_phrases(mv: dict) -> list[str]:
+    """Atributos estruturados (em PT) que NÃO estão na sinopse mas o usuário usa
+    para descrever o filme: época/década, era do mudo/preto-e-branco, qualidade
+    (bom/ruim), duração. Derivados de release_year, vote_average e runtime."""
+    out: list[str] = []
+    year = mv.get("release_year")
+    if year:
+        decade = (int(year) // 10) * 10
+        out += [f"década de {decade}", f"filme dos anos {decade}", f"de {year}"]
+        if year <= 1929:
+            out += ["filme mudo", "cinema mudo", "preto e branco", "filme muito antigo"]
+        elif year <= 1935:
+            out += ["preto e branco", "filme antigo clássico"]
+        elif year <= 1969:
+            out.append("filme antigo clássico")
+        if year >= 2018:
+            out.append("filme recente atual")
+    va = mv.get("vote_average") or 0
+    vc = mv.get("vote_count") or 0
+    if va >= 7.8 and vc >= 300:
+        out.append("filme aclamado muito bom premiado obra-prima")
+    elif va >= 7.0:
+        out.append("filme bem avaliado bom")
+    elif va and va <= 4.5 and vc >= 80:
+        out.append("filme ruim mal avaliado fraco")
+    rt = mv.get("runtime_minutes")
+    if rt and rt < 45:
+        out.append("curta-metragem curta")
+    elif rt and rt >= 150:
+        out.append("filme longo épico")
+    return out
+
+
 def _build_keyword_documents(ids: np.ndarray) -> list[str]:
-    """Documento temÃ¡tico por filme: gÃªneros + keywords da TMDB.
+    """Documento temÃ¡tico por filme: gÃªneros + keywords da TMDB + atributos.
 
     As keywords ("time loop", "memory loss", "viagem no tempo") sÃ£o o gancho que
     casa com descriÃ§Ãµes de enredo. Vira um **embedding separado** (nÃ£o Ã© misturado
@@ -79,7 +141,55 @@ def _build_keyword_documents(ids: np.ndarray) -> list[str]:
     irrelevantes â€” "alarm clock", "telecaster" â€” no texto da sinopse)."""
     gmap = catalog.genres_by_movie()
     kmap = catalog.keywords_by_movie()
-    return [" ".join(gmap.get(int(t), []) + kmap.get(int(t), [])) for t in ids.tolist()]
+    cat = catalog.get_catalog()
+    people = _people_documents(ids)
+    docs: list[str] = []
+    for t in ids.tolist():
+        tid = int(t)
+        kws = kmap.get(tid, [])
+        parts = list(gmap.get(tid, [])) + list(kws)
+        for kw in kws:  # sinônimo PT p/ keywords de atributo (vêm em inglês)
+            pt = _ATTR_KEYWORD_PT.get(kw.lower())
+            if pt:
+                parts.append(pt)
+        parts += _attribute_phrases(cat.get(tid, {}))  # década, p&b, mudo, qualidade...
+        if people.get(tid):
+            parts.append(people[tid])                    # diretor + elenco principal
+        docs.append(" ".join(parts))
+    return docs
+
+
+def _people_documents(ids: np.ndarray, n_cast: int = 6) -> dict[int, str]:
+    """Por filme: diretor(es) + elenco principal (por ordem de crédito). Permite
+    que uma busca em texto livre citando pessoas ('filme do scorsese sobre máfia')
+    case o filme certo, sem depender só dos campos de diretor/ator."""
+    from collections import defaultdict
+
+    directors: dict[int, list[str]] = defaultdict(list)
+    cast: dict[int, list[tuple[int, str]]] = defaultdict(list)
+    rows = db.query(
+        "SELECT mp.tmdb_id AS tmdb_id, p.name AS name, mp.role AS role, "
+        "mp.credit_order AS credit_order "
+        "FROM movie_people mp JOIN people p ON p.person_id = mp.person_id "
+        "WHERE mp.role IN ('actor', 'director')"
+    )
+    for r in rows:
+        if r["role"] == "director":
+            directors[r["tmdb_id"]].append(r["name"])
+        else:
+            order = r["credit_order"] if r["credit_order"] is not None else 999
+            cast[r["tmdb_id"]].append((order, r["name"]))
+    out: dict[int, str] = {}
+    for t in ids.tolist():
+        tid = int(t)
+        names = [nm for _o, nm in sorted(cast.get(tid, []))[:n_cast]]
+        parts = []
+        if directors.get(tid):
+            parts.append("dirigido por " + ", ".join(directors[tid][:2]))
+        if names:
+            parts.append("com " + ", ".join(names))
+        out[tid] = " ".join(parts)
+    return out
 
 
 def build_index(
@@ -108,10 +218,15 @@ def build_index(
     docs = df["overview"].fillna("").tolist()  # sinopse pura: base do BM25 e do embedding principal
     n = len(docs)
 
-    # --- BM25 lexical (CountVectorizer com stopwords PT) ---
+    # --- BM25 lexical (CountVectorizer com stopwords PT, sem acento) ---
     t0 = time.time()
-    stop = portuguese_stopwords()
-    bm25 = BM25Index.build(docs, stop_words=stop)
+    import unicodedata
+    def _noacc(s):
+        return "".join(c for c in unicodedata.normalize("NFD", s)
+                       if unicodedata.category(c) != "Mn")
+    # O BM25 tira acento dos tokens; as stopwords precisam vir sem acento também.
+    stop = sorted({_noacc(w) for w in portuguese_stopwords()})
+    bm25 = BM25Index.build(docs, stop_words=stop, strip_accents="unicode")
     bm25_secs = round(time.time() - t0, 1)
 
     np.save(MOVIE_IDS_PATH, ids)
@@ -139,20 +254,24 @@ def build_index(
     if with_embeddings:
         from sentence_transformers import SentenceTransformer
 
-        t0 = time.time()
-        model = SentenceTransformer(embed_model_name)
+        from core.device import get_device
 
-        emb = model.encode(
-            docs, batch_size=batch_size, normalize_embeddings=True,
-            show_progress_bar=show_progress, convert_to_numpy=True,
-        ).astype(np.float32)
+        t0 = time.time()
+        model = SentenceTransformer(embed_model_name, device=get_device())
+        q_pref, p_pref = embed_prefixes(embed_model_name)
+
+        def _encode_passages(texts: list[str]) -> np.ndarray:
+            payload = [f"{p_pref}{t}" for t in texts] if p_pref else texts
+            return model.encode(
+                payload, batch_size=batch_size, normalize_embeddings=True,
+                show_progress_bar=show_progress, convert_to_numpy=True,
+            ).astype(np.float32)
+
+        emb = _encode_passages(docs)
         np.save(EMBEDDINGS_PATH, emb)
 
         kw_docs = _build_keyword_documents(ids)
-        kw_emb = model.encode(
-            kw_docs, batch_size=batch_size, normalize_embeddings=True,
-            show_progress_bar=show_progress, convert_to_numpy=True,
-        ).astype(np.float32)
+        kw_emb = _encode_passages(kw_docs)
         np.save(KW_EMBEDDINGS_PATH, kw_emb)
 
         # Embedding por keyword distinta (nÃ£o por filme): permite, na explicaÃ§Ã£o,
@@ -160,15 +279,14 @@ def build_index(
         # multilÃ­ngue (a consulta em PT casa "time loop"/"viagem no tempo").
         kw_rows = db.query("SELECT keyword_id, name FROM keywords ORDER BY keyword_id")
         kw_names = [r["name"] for r in kw_rows]
-        kw_term_emb = model.encode(
-            kw_names, batch_size=batch_size, normalize_embeddings=True,
-            show_progress_bar=show_progress, convert_to_numpy=True,
-        ).astype(np.float32)
+        kw_term_emb = _encode_passages(kw_names)
         np.save(KEYWORD_TERM_EMB_PATH, kw_term_emb)
         with open(KEYWORD_TERMS_PATH, "w", encoding="utf-8") as f:
             json.dump(kw_names, f, ensure_ascii=False)
 
         meta.update(
+            embed_query_prefix=q_pref,
+            embed_passage_prefix=p_pref,
             has_embeddings=True,
             has_keyword_embeddings=True,
             has_keyword_terms=True,

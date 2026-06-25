@@ -49,10 +49,14 @@ class BM25Index:
 
     @classmethod
     def build(cls, docs: list[str], stop_words: Optional[list[str]] = None,
-              k1: float = DEFAULT_K1, b: float = DEFAULT_B) -> "BM25Index":
+              k1: float = DEFAULT_K1, b: float = DEFAULT_B,
+              strip_accents: Optional[str] = "unicode") -> "BM25Index":
         from sklearn.feature_extraction.text import CountVectorizer
 
-        vectorizer = CountVectorizer(stop_words=stop_words)
+        # strip_accents='unicode': "gângster" (consulta PT) casa "gangster"
+        # (keyword/overview em inglês). O mesmo analisador é aplicado à consulta
+        # no .transform, então os dois lados ficam sem acento automaticamente.
+        vectorizer = CountVectorizer(stop_words=stop_words, strip_accents=strip_accents)
         counts = vectorizer.fit_transform(docs)
         return cls(vectorizer, counts, k1=k1, b=b)
 

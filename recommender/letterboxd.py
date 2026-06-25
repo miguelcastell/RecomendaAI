@@ -5,13 +5,14 @@ com as colunas: `Date, Name, Year, Letterboxd URI, Rating` (Name em inglês/orig
 Rating 0.5–5.0 — mesma escala do nosso modelo, sem reescalar).
 
 Resolução de `tmdb_id`:
-  - `resolver="fuzzy"` (default, **funciona agora**): casa por **título + ano**
-    diretamente no catálogo com rapidfuzz. ⚠️ Limitação conhecida: os títulos do
-    catálogo estão em PT e o `Name` do Letterboxd em inglês/original, então muitos
-    filmes não casam. É um fallback temporário.
-  - `resolver="tmdb"` (**melhoria futura, atrás de flag**): resolver via TMDB
-    `/search/movie` (nome+ano) → tmdb_id, bem mais preciso para títulos PT.
-    Requer `TMDB_API_KEY` (ainda não configurada) — hoje só um stub.
+  - `resolver="tmdb"`: resolve via TMDB `/search/movie` (nome+ano) → tmdb_id e
+    confere se esse id está no catálogo. Preciso mesmo com títulos PT no catálogo,
+    porque o id do TMDB é o mesmo nas duas bases. Filmes que o TMDB não resolver
+    caem para o fuzzy. Requer credencial TMDB (`.env`).
+  - `resolver="fuzzy"`: casa por **título + ano** direto no catálogo com rapidfuzz.
+    ⚠️ Limitação: títulos do catálogo em PT e `Name` do Letterboxd em inglês fazem
+    muitos filmes não casarem. Fallback quando não há credencial TMDB.
+  - `resolver="auto"` (default): usa TMDB se houver credencial, senão fuzzy.
 """
 
 from __future__ import annotations
@@ -32,6 +33,9 @@ class ImportResult:
     matched: list[tuple[int, float]] = field(default_factory=list)  # [(tmdb_id, rating)]
     unmatched: list[dict] = field(default_factory=list)             # linhas não resolvidas
     total_rows: int = 0
+    # Detalhe por filme casado: {tmdb_id, rating, name, year, review} — alimenta o
+    # perfil de gosto (embeddings + resumo). `matched` continua sendo o par básico.
+    matched_detail: list[dict] = field(default_factory=list)
 
     @property
     def match_rate(self) -> float:
@@ -70,7 +74,8 @@ def _parse_rows(rows: list[dict]) -> list[dict]:
             year = int(year_raw) if year_raw else None
         except ValueError:
             year = None
-        parsed.append({"name": name, "year": year, "rating": rating})
+        review = (r.get("Review") or "").strip()
+        parsed.append({"name": name, "year": year, "rating": rating, "review": review})
     return parsed
 
 
@@ -121,38 +126,85 @@ class _FuzzyResolver:
         return self._ids[idx], score
 
 
-def _resolve_via_tmdb(parsed: list[dict], api_key: Optional[str]) -> ImportResult:
-    """STUB — melhoria futura. Requer TMDB_API_KEY (não configurada)."""
-    raise NotImplementedError(
-        "Resolução via TMDB ainda não implementada (TMDB_API_KEY não configurada). "
-        "Use resolver='fuzzy'. Veja a Fase 3 do plano."
-    )
+def _record_match(result: ImportResult, tmdb_id: int, row: dict) -> None:
+    """Registra um casamento em `matched` (par básico) e `matched_detail` (rico)."""
+    result.matched.append((int(tmdb_id), row["rating"]))
+    result.matched_detail.append({
+        "tmdb_id": int(tmdb_id), "rating": float(row["rating"]),
+        "name": row.get("name"), "year": row.get("year"),
+        "review": row.get("review", ""),
+    })
 
 
-def import_ratings(
-    source: Union[str, io.IOBase],
-    resolver: str = "fuzzy",
-    title_cutoff: float = DEFAULT_TITLE_CUTOFF,
-    tmdb_api_key: Optional[str] = None,
-) -> ImportResult:
-    """Lê o `ratings.csv` do Letterboxd e devolve [(tmdb_id, rating)] resolvidos.
-
-    `resolver`: 'fuzzy' (título+ano, funciona agora) ou 'tmdb' (futuro, stub).
-    """
-    parsed = _parse_rows(_read_csv(source))
+def _resolve_via_fuzzy(parsed: list[dict], title_cutoff: float) -> ImportResult:
+    """Casa cada linha por título+ano contra o catálogo (rapidfuzz)."""
     result = ImportResult(total_rows=len(parsed))
-
-    if resolver == "tmdb":
-        return _resolve_via_tmdb(parsed, tmdb_api_key)
-    if resolver != "fuzzy":
-        raise ValueError(f"resolver desconhecido: {resolver!r}")
-
     fr = _FuzzyResolver(title_cutoff=title_cutoff)
     for row in parsed:
         hit = fr.resolve(row["name"], row["year"])
         if hit is None:
             result.unmatched.append(row)
         else:
-            tmdb_id, _score = hit
-            result.matched.append((tmdb_id, row["rating"]))
+            _record_match(result, hit[0], row)
     return result
+
+
+def _resolve_via_tmdb(parsed: list[dict], title_cutoff: float,
+                      fallback_fuzzy: bool = True) -> ImportResult:
+    """Resolve via TMDB `/search/movie`; cai para fuzzy no que o TMDB não pegar.
+
+    Só conta como match quando o tmdb_id resolvido existe no catálogo (é um filme
+    que o sistema conhece e pode usar na recomendação).
+    """
+    from core import tmdb
+
+    if not tmdb.is_configured():
+        if fallback_fuzzy:
+            return _resolve_via_fuzzy(parsed, title_cutoff)
+        raise RuntimeError(
+            "Credencial TMDB ausente. Defina TMDB_API_TOKEN/TMDB_API_KEY no .env "
+            "ou use resolver='fuzzy'."
+        )
+
+    cat = catalog.get_catalog()
+    tmdb.prefetch_search([(r["name"], r["year"]) for r in parsed])
+
+    result = ImportResult(total_rows=len(parsed))
+    fuzzy: Optional[_FuzzyResolver] = None
+    for row in parsed:
+        tid = tmdb.search_movie_id(row["name"], row["year"])
+        if tid is not None and tid in cat:
+            _record_match(result, tid, row)
+            continue
+        if fallback_fuzzy:
+            if fuzzy is None:
+                fuzzy = _FuzzyResolver(title_cutoff=title_cutoff)
+            hit = fuzzy.resolve(row["name"], row["year"])
+            if hit is not None and hit[0] in cat:
+                _record_match(result, hit[0], row)
+                continue
+        result.unmatched.append(row)
+    return result
+
+
+def import_ratings(
+    source: Union[str, io.IOBase],
+    resolver: str = "auto",
+    title_cutoff: float = DEFAULT_TITLE_CUTOFF,
+    tmdb_api_key: Optional[str] = None,  # mantido por compatibilidade; credencial vem do .env
+) -> ImportResult:
+    """Lê o `ratings.csv` do Letterboxd e devolve [(tmdb_id, rating)] resolvidos.
+
+    `resolver`: 'auto' (TMDB se houver credencial, senão fuzzy), 'tmdb' ou 'fuzzy'.
+    """
+    parsed = _parse_rows(_read_csv(source))
+
+    if resolver == "auto":
+        from core import tmdb
+        resolver = "tmdb" if tmdb.is_configured() else "fuzzy"
+
+    if resolver == "tmdb":
+        return _resolve_via_tmdb(parsed, title_cutoff)
+    if resolver == "fuzzy":
+        return _resolve_via_fuzzy(parsed, title_cutoff)
+    raise ValueError(f"resolver desconhecido: {resolver!r}")

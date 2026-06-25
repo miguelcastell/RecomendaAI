@@ -1,45 +1,48 @@
-"""Pôsteres — busca URL do poster do TMDB.
+"""Pôsteres — resolve a capa do filme via API do TMDB (com cache em disco).
 
-Tenta primeiro resolver do JSON (data/tmdb_movies_large.json). Se não achar,
-cai para o placeholder com o título.
+`get_poster(tmdb_id)` busca o pôster no TMDB pelo id; se não houver credencial,
+rede ou pôster, devolve um placeholder com o título. `attach(items)` faz o
+prefetch concorrente das capas de uma página de resultados de uma vez só.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 from urllib.parse import quote
 
+from core import tmdb
+
 _PLACEHOLDER_BASE = "https://placehold.co/342x513/141414/e50914"
-_TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342"
-
-
-def _find_poster_in_json(tmdb_id: int) -> Optional[str]:
-    """Procura o poster_path no JSON (tmdb_movies_large.json ou tmdb_movies.json)."""
-    import json
-
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for fname in ["tmdb_movies_large.json", "tmdb_movies.json"]:
-        path = os.path.join(project_root, "data", fname)
-        if os.path.exists(path):
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    movies = json.load(f)
-                for m in movies:
-                    if int(m.get("id", 0)) == tmdb_id:
-                        pp = m.get("poster_path")
-                        if pp:
-                            return f"{_TMDB_IMAGE_BASE}{pp}"
-            except Exception:
-                pass
-    return None
 
 
 def get_poster(tmdb_id: int, title: Optional[str] = None) -> str:
-    """Retorna URL do pôster do filme (ou placeholder)."""
-    if tmdb_id and tmdb_id > 0:
-        poster_url = _find_poster_in_json(tmdb_id)
-        if poster_url:
-            return poster_url
+    """URL do pôster do filme (ou placeholder com o título)."""
+    if tmdb_id and int(tmdb_id) > 0:
+        url = tmdb.poster_url(int(tmdb_id))
+        if url:
+            return url
     text = quote((title or "Sem pôster")[:40])
     return f"{_PLACEHOLDER_BASE}?text={text}"
+
+
+def _movie_id(item: dict) -> int:
+    tid = item.get("tmdb_id") or item.get("movie_id")
+    try:
+        return int(tid) if tid else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def attach(items: list[dict]) -> list[dict]:
+    """Devolve cópias de `items` com a chave `poster` preenchida.
+
+    Faz o prefetch concorrente de todas as capas ausentes antes de montar a
+    lista, então cada `get_poster` lê do cache (rápido).
+    """
+    tmdb.prefetch_posters(_movie_id(it) for it in items)
+    out = []
+    for it in items:
+        it = dict(it)
+        it["poster"] = get_poster(_movie_id(it), it.get("title"))
+        out.append(it)
+    return out

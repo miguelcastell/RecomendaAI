@@ -1,0 +1,18 @@
+{
+  "n_ratings": 2911675,
+  "n_users": 19835,
+  "n_items": 15246,
+  "n_factors": 50,
+  "n_epochs": 20,
+  "mu": 3.5462342122661354,
+  "rmse_holdout": 0.7986578849632423,
+  "mae_holdout": 0.605960786895111,
+  "rating_scale": [
+    0.5,
+    5.0
+  ],
+  "neighbors_k": 50,
+  "eval_secs": 10.8,
+  "fit_secs": 4.7,
+  "built_at": 1781538379
+}

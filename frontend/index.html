@@ -61,47 +61,28 @@
             <div class="movies-grid" id="searchGrid"></div>
         </section>
 
-        <!-- ABA 2: ESCOLHER 3 FILMES -->
+        <!-- ABA 2: ESCOLHER FILMES FAVORITOS -->
         <section id="tab-pick3" class="tab-panel">
             <div class="form-section">
-                <p class="hint">Selecione 3 filmes que você ama para receber recomendações personalizadas!</p>
-                <form id="movieForm">
-                    <input type="hidden" name="user_id" value="9999">
-
-                    <div class="movie-input-group">
-                        <label for="movie1">1º Filme Favorito</label>
-                        <div class="autocomplete-container">
-                            <input type="text" id="movie1" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
-                            <div class="autocomplete-dropdown" id="dropdown1"></div>
-                            <input type="hidden" name="movie_id_1" id="movie_id_1">
-                        </div>
+                <p class="hint">Clique nos filmes que você curte — quanto mais escolher, melhor o seu perfil. Depois é só recomendar.</p>
+                <div class="search-row">
+                    <div class="autocomplete-wrap" style="flex:1">
+                        <input type="text" id="pickSearch" class="text-input" autocomplete="off"
+                               placeholder="🔎 Não está abaixo? Busque um filme para adicionar...">
+                        <div class="autocomplete-dropdown" id="pickSearchDropdown"></div>
                     </div>
-
-                    <div class="movie-input-group">
-                        <label for="movie2">2º Filme Favorito</label>
-                        <div class="autocomplete-container">
-                            <input type="text" id="movie2" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
-                            <div class="autocomplete-dropdown" id="dropdown2"></div>
-                            <input type="hidden" name="movie_id_2" id="movie_id_2">
-                        </div>
-                    </div>
-
-                    <div class="movie-input-group">
-                        <label for="movie3">3º Filme Favorito</label>
-                        <div class="autocomplete-container">
-                            <input type="text" id="movie3" placeholder="Comece a digitar o nome do filme..." autocomplete="off" required>
-                            <div class="autocomplete-dropdown" id="dropdown3"></div>
-                            <input type="hidden" name="movie_id_3" id="movie_id_3">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-primary">
-                        Descubra Seus Próximos Filmes!
+                    <button id="pickRecommendBtn" class="btn-primary" disabled>
+                        Recomendar (<span id="pickCount">0</span>)
                     </button>
-                </form>
+                </div>
+                <div class="picked-row" id="pickedRow"></div>
             </div>
 
+            <div class="pick-grid" id="popularGrid"></div>
+            <button id="pickMoreBtn" class="btn-secondary" style="display:none">Mostrar mais filmes</button>
+
             <div id="pick3Status" class="status"></div>
+            <div id="pick3Profile" class="profile-card" style="display:none"></div>
             <div class="movies-grid" id="pick3Grid"></div>
         </section>
 
@@ -119,6 +100,7 @@
                 </div>
             </div>
             <div id="recommendStatus" class="status"></div>
+            <div id="recommendProfile" class="profile-card" style="display:none"></div>
             <div class="movies-grid" id="recommendGrid"></div>
         </section>
     </div>
@@ -131,6 +113,10 @@
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+                // Carrega a grade de filmes famosos na 1ª vez que a aba abre.
+                if (btn.dataset.tab === 'pick3' && !popularLoaded) {
+                    popularLoaded = true; loadPopular();
+                }
             });
         });
 
@@ -168,11 +154,13 @@
                 ? Object.entries(e.constraints).map(([role, name]) =>
                     `<span class="chip chip-person">${role === 'director' ? '🎬' : '⭐'} ${esc(name)}</span>`).join('')
                 : '';
+            const conf = (e.confidence != null) ? e.confidence : e.relevance;
+            const confClass = conf >= 70 ? 'conf-high' : conf >= 40 ? 'conf-mid' : 'conf-low';
             return `
                 <div class="explain">
-                    <div class="explain-rel" title="Relevância relativa a esta busca">
-                        <div class="explain-rel-track"><div class="explain-rel-fill" style="width:${e.relevance}%"></div></div>
-                        <span class="explain-rel-num">${e.relevance} · #${e.position}</span>
+                    <div class="explain-rel" title="Confiança absoluta do match (quão bem o filme casa com a busca). À direita: posição e relevância relativa a esta busca.">
+                        <div class="explain-rel-track"><div class="explain-rel-fill ${confClass}" style="width:${conf}%"></div></div>
+                        <span class="explain-rel-num">${conf}% conf · #${e.position} · rel ${e.relevance}</span>
                     </div>
                     ${segs ? `<div class="sig-bar">${segs}</div><div class="sig-legend">${legend}</div>` : ''}
                     ${(chips || cons) ? `<div class="explain-chips">${cons}${chips}</div>` : ''}
@@ -196,6 +184,7 @@
                     </div>
                     <div class="movie-title">${esc(m.title)}${year}</div>
                     ${ratingBadge(m)}
+                    ${(m.why && m.why.length) ? `<div class="movie-why">${m.why.map(w => `<span class="chip">${esc(w)}</span>`).join('')}</div>` : ''}
                     ${explanationBlock(m.explanation)}
                     ${overview}`;
                 grid.appendChild(card);
@@ -277,118 +266,146 @@
             });
         });
 
-        // ========== ABA 2: ESCOLHER 3 FILMES ==========
+        // ========== ABA 2: ESCOLHER FILMES FAVORITOS ==========
         let moviesList = [];
-        let autocompleteTimeout;
+        let pickSearchTimeout, popularOffset = 0, popularLoaded = false;
+        const picked = new Map();   // tmdb_id -> {tmdb_id, title, release_year, poster}
 
         async function loadMovies() {
-            try {
-                const response = await fetch('/get_movies');
-                moviesList = await response.json();
-            } catch (error) {
-                console.error('Erro ao carregar filmes:', error);
-            }
+            try { moviesList = await (await fetch('/get_movies')).json(); }
+            catch (e) { console.error('Erro ao carregar filmes:', e); }
         }
 
-        function setupAutocomplete(inputId, dropdownId, hiddenId) {
-            const input = document.getElementById(inputId);
-            const dropdown = document.getElementById(dropdownId);
-            const hiddenInput = document.getElementById(hiddenId);
+        function renderPicked() {
+            document.getElementById('pickCount').textContent = picked.size;
+            document.getElementById('pickRecommendBtn').disabled = picked.size === 0;
+            const row = document.getElementById('pickedRow');
+            row.innerHTML = '';
+            picked.forEach(f => {
+                const chip = document.createElement('span');
+                chip.className = 'picked-chip';
+                chip.innerHTML = `${esc(f.title)} <b>&times;</b>`;
+                chip.title = 'Remover';
+                chip.addEventListener('click', () => togglePick(f));
+                row.appendChild(chip);
+            });
+        }
 
-            input.addEventListener('input', function() {
-                clearTimeout(autocompleteTimeout);
+        function togglePick(film) {
+            const id = film.tmdb_id;
+            if (picked.has(id)) picked.delete(id); else picked.set(id, film);
+            const card = document.querySelector(`.pick-card[data-id="${id}"]`);
+            if (card) card.classList.toggle('selected', picked.has(id));
+            renderPicked();
+        }
 
-                if (this.value.length < 2) {
+        function pickCard(film) {
+            const card = document.createElement('div');
+            card.className = 'pick-card' + (picked.has(film.tmdb_id) ? ' selected' : '');
+            card.dataset.id = film.tmdb_id;
+            const poster = film.poster || 'https://placehold.co/342x513/141414/e50914?text=%3F';
+            const year = film.release_year ? ` (${film.release_year})` : '';
+            card.innerHTML = `
+                <div class="pick-poster">
+                    <img src="${poster}" alt="${esc(film.title)}" loading="lazy" onerror="this.style.opacity=0">
+                    <span class="pick-check">✓</span>
+                </div>
+                <div class="pick-title">${esc(film.title)}${year}</div>`;
+            card.addEventListener('click', () => togglePick(film));
+            return card;
+        }
+
+        async function loadPopular() {
+            const grid = document.getElementById('popularGrid');
+            const more = document.getElementById('pickMoreBtn');
+            more.textContent = 'Carregando...';
+            try {
+                const films = await (await fetch(`/popular?n=42&offset=${popularOffset}`)).json();
+                films.forEach(f => grid.appendChild(pickCard(f)));
+                popularOffset += films.length;
+                more.textContent = 'Mostrar mais filmes';
+                more.style.display = films.length >= 42 ? 'block' : 'none';
+            } catch (e) { grid.innerHTML = '<p class="hint">Erro ao carregar filmes.</p>'; }
+        }
+        document.getElementById('pickMoreBtn').addEventListener('click', loadPopular);
+
+        // Busca para adicionar um filme específico que não está na grade.
+        (function setupPickSearch() {
+            const input = document.getElementById('pickSearch');
+            const dropdown = document.getElementById('pickSearchDropdown');
+            input.addEventListener('input', () => {
+                clearTimeout(pickSearchTimeout);
+                const q = input.value.trim().toLowerCase();
+                if (q.length < 2) { dropdown.style.display = 'none'; return; }
+                pickSearchTimeout = setTimeout(() => {
+                    const matches = moviesList.filter(m => m.title.toLowerCase().includes(q)).slice(0, 8);
                     dropdown.innerHTML = '';
-                    dropdown.style.display = 'none';
-                    return;
-                }
-
-                autocompleteTimeout = setTimeout(() => {
-                    const searchTerm = this.value.toLowerCase();
-                    const filteredMovies = moviesList.filter(movie =>
-                        movie.title.toLowerCase().includes(searchTerm)
-                    ).slice(0, 8);
-
-                    if (filteredMovies.length > 0) {
-                        dropdown.innerHTML = '';
-                        filteredMovies.forEach(movie => {
-                            const div = document.createElement('div');
-                            div.className = 'autocomplete-item';
-                            div.textContent = movie.title;
-                            div.addEventListener('click', function() {
-                                input.value = movie.title;
-                                hiddenInput.value = movie.movie_id;
-                                dropdown.innerHTML = '';
-                                dropdown.style.display = 'none';
-                            });
-                            dropdown.appendChild(div);
+                    if (!matches.length) { dropdown.style.display = 'none'; return; }
+                    matches.forEach(m => {
+                        const div = document.createElement('div');
+                        div.className = 'autocomplete-item';
+                        div.textContent = m.title;
+                        div.addEventListener('click', () => {
+                            togglePick({ tmdb_id: m.movie_id, title: m.title, release_year: null, poster: null });
+                            input.value = ''; dropdown.style.display = 'none';
                         });
-                        dropdown.style.display = 'block';
-                    } else {
-                        dropdown.innerHTML = '<div class="autocomplete-item">Nenhum filme encontrado</div>';
-                        dropdown.style.display = 'block';
-                    }
-                }, 300);
+                        dropdown.appendChild(div);
+                    });
+                    dropdown.style.display = 'block';
+                }, 250);
             });
-
-            document.addEventListener('click', function(e) {
-                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
-                    dropdown.style.display = 'none';
-                }
+            document.addEventListener('click', e => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
             });
-        }
+        })();
 
-        document.getElementById('movieForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        document.getElementById('pickRecommendBtn').addEventListener('click', async () => {
             const status = document.getElementById('pick3Status');
-
-            const inputs = ['movie_id_1', 'movie_id_2', 'movie_id_3'];
-            let isValid = true;
-
-            inputs.forEach(id => {
-                const input = document.getElementById(id);
-                if (!input.value) {
-                    isValid = false;
-                }
-            });
-
-            if (!isValid) {
-                status.textContent = 'Por favor, selecione todos os filmes da lista de sugestões!';
-                return;
-            }
-
-            const formData = new FormData(this);
-
+            if (!picked.size) { status.textContent = 'Escolha pelo menos um filme.'; return; }
+            status.textContent = 'Analisando seu gosto...';
+            renderProfile(null, 'pick3Profile');
             try {
-                const response = await fetch('/submit_ratings', {
-                    method: 'POST',
-                    body: formData
+                const res = await fetch('/submit_ratings', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ movie_ids: [...picked.keys()] })
                 });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    status.textContent = result.message || 'Recomendações geradas!';
-                    renderGrid('pick3Grid', result.recommendations);
-                    document.getElementById('tab-pick3').scrollIntoView({ behavior: 'smooth' });
+                const data = await res.json();
+                if (res.ok) {
+                    status.textContent = data.message || 'Recomendações geradas!';
+                    renderProfile(data.profile, 'pick3Profile');
+                    renderGrid('pick3Grid', data.recommendations);
+                    document.getElementById('pick3Status').scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    status.textContent = result.error || result.message || 'Erro ao processar.';
-                    if (result.recommendations && result.recommendations.length > 0) {
-                        renderGrid('pick3Grid', result.recommendations);
-                    }
+                    status.textContent = data.error || data.message || 'Erro ao processar.';
                 }
-            } catch (error) {
-                status.textContent = 'Erro ao processar solicitação: ' + error.message;
-            }
+            } catch (e) { status.textContent = 'Erro: ' + e.message; }
         });
 
         // ========== ABA 3: RECOMENDAR LETTERBOXD ==========
+        function renderProfile(p, boxId = 'recommendProfile') {
+            const box = document.getElementById(boxId);
+            if (!p) { box.style.display = 'none'; return; }
+            const chips = arr => (arr || []).map(x => `<span class="chip">${esc(x)}</span>`).join('');
+            const row = (label, arr) => (arr && arr.length)
+                ? `<div class="profile-row"><span class="profile-label">${label}</span>${chips(arr)}</div>` : '';
+            box.innerHTML = `
+                <div class="profile-head">🎭 Seu perfil de gosto
+                    <small>${p.n_liked} filmes amados de ${p.n_rated} · nota média ⭐ ${p.avg_rating}</small>
+                </div>
+                ${row('Diretores', p.directors)}
+                ${row('Gêneros', p.genres)}
+                ${row('Atores', p.actors)}
+                ${row('Temas', p.themes)}
+                ${row('Décadas', p.decades)}`;
+            box.style.display = 'block';
+        }
+
         document.getElementById('recommendBtn').addEventListener('click', async () => {
             const fileInput = document.getElementById('ratingsFile');
             const status = document.getElementById('recommendStatus');
             if (!fileInput.files.length) { status.textContent = 'Selecione o ratings.csv.'; return; }
             status.textContent = 'Analisando seu perfil...';
+            renderProfile(null);
             const fd = new FormData();
             fd.append('ratings', fileInput.files[0]);
             try {
@@ -401,17 +418,17 @@
                 }
                 status.textContent = `${data.matched}/${data.total_rows} filmes casados `
                     + `(${Math.round(data.match_rate*100)}%) · estratégia: ${data.method}`;
+                renderProfile(data.profile);
                 renderGrid('recommendGrid', data.recommendations);
             } catch (e) { status.textContent = 'Erro: ' + e.message; }
         });
 
         // ========== INIT ==========
         document.addEventListener('DOMContentLoaded', function() {
-            loadMovies().then(() => {
-                setupAutocomplete('movie1', 'dropdown1', 'movie_id_1');
-                setupAutocomplete('movie2', 'dropdown2', 'movie_id_2');
-                setupAutocomplete('movie3', 'dropdown3', 'movie_id_3');
-            });
+            loadMovies();                 // catálogo p/ a busca "adicionar filme"
+            if (document.getElementById('tab-pick3').classList.contains('active') && !popularLoaded) {
+                popularLoaded = true; loadPopular();
+            }
         });
     </script>
 </body>

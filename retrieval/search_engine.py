@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 from typing import Any, Optional
 
 import numpy as np
@@ -26,6 +27,45 @@ from retrieval import index_builder as ib
 # Artigos PT iniciais: ruído no casamento de nome ("O pescotapa" casava todo
 # "O ..."). Removidos antes do fuzzy, dos dois lados (consulta e título).
 _PT_ARTICLES = {"o", "a", "os", "as", "um", "uma", "uns", "umas"}
+
+# Stopwords PT (com acento removido) — usadas para (1) limpar muletas no começo
+# de consultas descritivas e (2) medir cobertura de palavras de conteúdo no
+# casamento de nome, para que compartilhar só "uma/homem/com" não vire 90%.
+_PT_STOP = {
+    "a", "o", "as", "os", "um", "uma", "uns", "umas", "de", "da", "do", "das",
+    "dos", "e", "em", "no", "na", "nos", "nas", "com", "sem", "sob", "sobre",
+    "por", "para", "pra", "que", "qual", "quais", "quem", "onde", "como",
+    "quando", "ao", "aos", "se", "seu", "sua", "seus", "suas", "ele", "ela",
+    "eles", "elas", "este", "esta", "esse", "essa", "aquele", "aquela",
+    "aqueles", "aquelas", "isto", "isso", "aquilo", "meu", "minha", "filme",
+    "filmes", "longa", "longas", "desenho", "animacao", "serie", "cinema",
+}
+
+
+def _strip_accents(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s)
+                   if unicodedata.category(c) != "Mn")
+
+
+def _content_tokens(s: str) -> list[str]:
+    """Tokens de conteúdo (sem acento, >2 chars, fora das stopwords)."""
+    return [t for t in _strip_accents((s or "").lower()).split()
+            if len(t) > 2 and t not in _PT_STOP]
+
+
+def clean_descriptive_query(q: str) -> str:
+    """Remove muletas iniciais de consultas descritivas ('Filme da ...',
+    'aquele filme que ...', 'qual o filme ...') — só a sequência inicial de
+    stopwords, parando na 1ª palavra de conteúdo. Mantém ao menos um token.
+
+    Medido: 'Filme da mulher de cabelo branco...' ranqueava o Frozen em #562;
+    sem o 'Filme da', #63 (o embedding é sensível ao lixo no começo)."""
+    toks = (q or "").strip().split()
+    i = 0
+    while i < len(toks) - 1 and _strip_accents(toks[i].lower().strip("?¿!.,;:")) in _PT_STOP:
+        i += 1
+    cleaned = " ".join(toks[i:]).strip(" ?¿!.,;:")
+    return cleaned or (q or "").strip()
 
 
 def _name_key(s: str) -> str:
@@ -38,10 +78,17 @@ def _name_key(s: str) -> str:
 
 
 def _name_score(query_key: str, title: str) -> float:
-    """Score de nome (0–1+): WRatio (tolera typo/partial) com **penalização de
-    cobertura** que derruba títulos muito mais curtos que a consulta — mata o
-    ruído de fragmento ("Amer" p/ "amerecano", "O Clube" p/ "clube da luat") sem
-    punir títulos mais longos ("Matrix Reloaded" p/ "matrix"). Bônus exato/prefixo."""
+    """Score de nome (0–1+): WRatio (tolera typo/partial) com duas penalizações.
+
+    1. **Cobertura de caracteres**: derruba títulos muito mais curtos que a
+       consulta (ruído de fragmento — "Amer" p/ "amerecano").
+    2. **Cobertura de conteúdo**: a fração das palavras de conteúdo da consulta
+       (sem stopwords) que aparecem no título. Sem isso o WRatio dá ~0.85 a
+       qualquer título que compartilhe só "uma/homem/com" com a consulta — o que
+       inflava a confiança dos candidatos errados. Compartilhar nenhuma palavra
+       de conteúdo zera quase tudo; compartilhar todas não penaliza.
+
+    Bônus de match exato/prefixo (que já implicam cobertura total) preservados."""
     from rapidfuzz import fuzz
 
     tk = _name_key(title)
@@ -50,8 +97,16 @@ def _name_score(query_key: str, title: str) -> float:
         return base + 0.5
     if tk and tk.startswith(query_key):
         return base + 0.15
-    coverage = min(1.0, len(tk) / max(len(query_key), 1))
-    return base * (0.4 + 0.6 * coverage)
+
+    char_cov = min(1.0, len(tk) / max(len(query_key), 1))
+    q_content = _content_tokens(query_key)
+    if q_content:
+        title_content = set(_content_tokens(title))
+        shared = sum(1 for t in q_content if t in title_content)
+        word_cov = shared / len(q_content)
+    else:
+        word_cov = 1.0  # consulta só de stopwords: nada a cobrir
+    return base * (0.4 + 0.6 * char_cov) * (0.2 + 0.8 * word_cov)
 
 
 # Rótulos dos sinais para a explicação exibida ao usuário.
@@ -67,15 +122,33 @@ SIGNAL_LABELS = {
 # confiável no caso geral; o lexical (TF-IDF) resgata enredos com termos próprios
 # ("sete pecados capitais", "revivendo o mesmo dia") e o temático resgata casos
 # de conceito ("time loop", "memory loss") que a sinopse sozinha não pega.
-DEFAULT_LEXICAL_WEIGHT = 0.25
-DEFAULT_EMBED_WEIGHT = 0.5
-DEFAULT_KEYWORD_WEIGHT = 0.45
+# Pesos da fusão calibrados no harness de 52 casos com o modelo e5-base.
+# O tema/keyword carrega também os ATRIBUTOS (preto-e-branco, mudo, década,
+# qualidade). A fusão usa ReLU (ver _synopsis_components): cada sinal só SOMA
+# evidência quando está acima da média — nunca pune um filme por estar "na média"
+# num sinal (era o que derrubava Forrest Gump de #12 para #136).
+DEFAULT_LEXICAL_WEIGHT = 0.25   # consultas curtas (ver _adaptive_lexical_weight)
+DEFAULT_EMBED_WEIGHT = 0.6
+DEFAULT_KEYWORD_WEIGHT = 0.5
+
+# Prior de popularidade/aclamação (z-score de log(vote_count)). Desempata a favor
+# do filme famoso quando muitos casam parecido com uma descrição genérica (ex.:
+# "ascensão e queda de um gângster" → dezenas de filmes de máfia). Configurável:
+# 0 desliga; ~0.3 moderado; ~0.5 agressivo (enterra obscuros). Ver harness.
+DEFAULT_POP_PRIOR = float(os.environ.get("RECOMENDAI_POP_PRIOR", "0.35"))
 
 # Re-ranker cross-encoder (2º estágio): reordena o top-K da 1ª etapa misturando
 # o score do cross-encoder com o da recuperação (blend) como prior estabilizador.
-# Medido no harness de 52 casos: MRR 0.506→0.577, hits@10 39→43.
-RERANK_POOL = int(os.environ.get("RECOMENDAI_RERANK_POOL", "50"))
-RERANK_BLEND = float(os.environ.get("RECOMENDAI_RERANK_BLEND", "0.3"))
+# Harness de 52 casos (e5-large + enriquecimento + ReLU + prior + BM25 sem acento,
+# pool 300/blend 0.5): MRR 0.69, hits@10 45/52, mediana #1, média do rank #5.9
+# (sem falhas catastróficas — o que motivou trocar o e5-base pelo large).
+# Pool grande (300) recupera casos difíceis (a famosa obra-prima na #200 da 1ª
+# etapa entra no cross-encoder); blend 0.5 mistura mais o score da 1ª etapa, o que
+# estabiliza o topo e evita que o pool grande baixe o MRR. Medido: pool 300/blend
+# 0.5 mantém MRR 0.68 e melhora a média do rank #12.7 → #7.5. Custo: ~3× mais
+# pares no cross-encoder por busca (mais lento — aceitável).
+RERANK_POOL = int(os.environ.get("RECOMENDAI_RERANK_POOL", "300"))
+RERANK_BLEND = float(os.environ.get("RECOMENDAI_RERANK_BLEND", "0.5"))
 RERANK_ENABLED = os.environ.get("RECOMENDAI_RERANK", "1").lower() not in ("0", "false", "no")
 
 
@@ -117,6 +190,7 @@ class SearchEngine:
         self._kw_term_row: dict[str, int] = {}             # nome(lower) -> linha em _kw_term_emb
         self._embed_model = None
         self._embed_model_name: Optional[str] = None
+        self._embed_query_prefix: str = ""  # prefixo do lado-consulta (ex.: E5 "query: ")
         self._query_emb_cache: dict[str, np.ndarray] = {}
         self._load_embeddings = load_embeddings
         # Re-ranker cross-encoder (2º estágio), carregado sob demanda.
@@ -132,6 +206,7 @@ class SearchEngine:
 
         # tmdb_id -> linha em self._movie_ids (para ler scores de sinopse).
         self._row_index_cache: Optional[dict[int, int]] = None
+        self._pop_prior_cache: Optional[np.ndarray] = None  # z-score de log(vote_count)
         # Mapas reversos para pessoa/keyword (construídos sob demanda).
         self._person_movies: Optional[dict[int, list[int]]] = None
         self._keyword_movies: Optional[dict[int, list[int]]] = None
@@ -146,6 +221,7 @@ class SearchEngine:
 
         with open(ib.META_PATH, encoding="utf-8") as f:
             meta = json.load(f)
+        self._embed_query_prefix = meta.get("embed_query_prefix", "") or ""
         self._movie_ids = np.load(ib.MOVIE_IDS_PATH)
         from retrieval.bm25 import BM25Index
 
@@ -249,11 +325,15 @@ class SearchEngine:
         return reordered + scored[pool:]
 
     def _encode(self, query: str) -> np.ndarray:
-        """Embedding L2-normalizado da consulta (cacheado por string de consulta)."""
+        """Embedding L2-normalizado da consulta (cacheado por string de consulta).
+
+        Aplica o prefixo do lado-consulta exigido por alguns modelos (E5 usa
+        'query: '); o índice foi gerado com o prefixo de passagem correspondente."""
         cached = self._query_emb_cache.get(query)
         if cached is None:
+            text = f"{self._embed_query_prefix}{query}" if self._embed_query_prefix else query
             cached = self._get_embed_model().encode(
-                [query], normalize_embeddings=True, convert_to_numpy=True
+                [text], normalize_embeddings=True, convert_to_numpy=True
             ).astype(np.float32)[0]
             self._query_emb_cache[query] = cached
         return cached
@@ -319,9 +399,21 @@ class SearchEngine:
         scored.sort(key=lambda kv: kv[1], reverse=True)
         return scored[: n * 4]
 
+    def _adaptive_lexical_weight(self, query: str) -> float:
+        """Peso do sinal lexical (BM25) conforme o tamanho da consulta. Consulta
+        curta (poucas palavras de conteúdo) costuma ter termos próprios fortes →
+        lexical ajuda; descrição longa é paráfrase do enredo (termos diferentes
+        da sinopse) → BM25 demove o match semântico certo, então pesa pouco."""
+        n = len(_content_tokens(query))
+        if n <= 3:
+            return 0.30
+        if n <= 6:
+            return 0.25
+        return 0.20
+
     def _synopsis_components(self, query: str,
                             q_emb: Optional[np.ndarray] = None,
-                            lexical_weight: float = DEFAULT_LEXICAL_WEIGHT,
+                            lexical_weight: Optional[float] = None,
                             embed_weight: float = DEFAULT_EMBED_WEIGHT,
                             keyword_weight: float = DEFAULT_KEYWORD_WEIGHT,
                             ) -> dict[str, np.ndarray]:
@@ -330,6 +422,9 @@ class SearchEngine:
         temático de keywords. Cada sinal é padronizado por z-score e multiplicado
         pelo seu peso, de modo que a soma das três é o score fundido.
 
+        A consulta é limpa de muletas iniciais antes de tudo. `lexical_weight=None`
+        usa o peso lexical adaptativo; um valor explícito (harness) o sobrepõe.
+
         Devolver os componentes (em vez de só a soma) é o que permite explicar
         ao usuário quanto cada sinal pesou em cada resultado (Objetivo 1)."""
         if self._bm25 is None:
@@ -337,27 +432,45 @@ class SearchEngine:
                 "Índice de sinopse ausente. Rode retrieval/index_builder.py "
                 "(ou research/build_search_index.ipynb) primeiro."
             )
+        query = clean_descriptive_query(query)
+        if lexical_weight is None:
+            lexical_weight = self._adaptive_lexical_weight(query)
         n = self._bm25.n_docs
         lexical_scores = self._bm25.scores(query)
+        # ReLU(z): cada sinal só SOMA evidência quando está acima da média; nunca
+        # pune um filme por estar "na média" num sinal (com o e5 os cossenos são
+        # comprimidos e altos, então o z-score cru dava negativo a bons matches e
+        # os derrubava). Guardamos o z BRUTO (sufixo _z_) p/ a confiança absoluta.
+        relu = lambda z: np.maximum(0.0, z)
+        z_lex = _zscore(lexical_scores)
+        zero = np.zeros(n, dtype=np.float64)
         comps = {
-            "lexical": lexical_weight * _zscore(lexical_scores),
-            "synopsis": np.zeros(n, dtype=np.float64),
-            "keyword": np.zeros(n, dtype=np.float64),
+            "lexical": lexical_weight * relu(z_lex),
+            "synopsis": zero.copy(),
+            "keyword": zero.copy(),
+            # Prior de popularidade (sempre presente; pode ser negativo p/ obscuros).
+            "prior": DEFAULT_POP_PRIOR * self._pop_prior_vec,
+            "_z_synopsis": zero.copy(),
+            "_z_keyword": zero.copy(),
         }
         if self._embeddings is not None and (embed_weight > 0 or keyword_weight > 0):
             if q_emb is None:
                 q_emb = self._encode(query)
             if embed_weight > 0:
-                comps["synopsis"] = embed_weight * _zscore(self._embeddings @ q_emb)
+                z_syn = _zscore(self._embeddings @ q_emb)
+                comps["synopsis"] = embed_weight * relu(z_syn)
+                comps["_z_synopsis"] = z_syn
             if keyword_weight > 0 and self._kw_embeddings is not None:
                 kw_q = self._keyword_query_emb(query, q_emb)
-                comps["keyword"] = keyword_weight * _zscore(self._kw_embeddings @ kw_q)
+                z_kw = _zscore(self._kw_embeddings @ kw_q)
+                comps["keyword"] = keyword_weight * relu(z_kw)
+                comps["_z_keyword"] = z_kw
         return comps
 
     def _synopsis_scores(self, query: str, **weights) -> np.ndarray:
-        """Vetor de scores de sinopse fundido (soma das contribuições z-score)."""
+        """Vetor de scores de sinopse fundido (ReLU dos sinais + prior)."""
         comps = self._synopsis_components(query, **weights)
-        return comps["lexical"] + comps["synopsis"] + comps["keyword"]
+        return comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["prior"]
 
     def search_by_synopsis(self, query: str, n: int = 10, **weights) -> list[tuple[int, float]]:
         """Sinopse híbrida sobre todo o catálogo (top n*4 candidatos)."""
@@ -479,6 +592,29 @@ class SearchEngine:
             return 100
         return int(round(100.0 * (score - lo) / (hi - lo)))
 
+    def _confidence(self, tmdb_id: int, ctx: dict) -> int:
+        """Confiança ABSOLUTA do match (0–100), independente do conjunto retornado.
+
+        Diferente da `relevance` (min-max relativa à busca), aqui um 2º colocado
+        fraco lê baixo de verdade. Para intenção de nome usa o score de nome (já
+        ciente de stopwords); para descrição, mapeia o z-score do melhor sinal
+        semântico (sinopse/tema) por uma logística — o z independe da escala de
+        cosseno do modelo, então vale para MiniLM e E5 sem recalibrar."""
+        import math
+
+        conf = 0.0
+        name_w = ctx.get("name_w", 0.0)
+        name_scores = ctx.get("name_scores") or {}
+        if name_w >= 0.3 and tmdb_id in name_scores:
+            conf = max(conf, min(1.0, float(name_scores[tmdb_id])))
+
+        comps = ctx.get("comps")
+        row = self._row_index.get(int(tmdb_id)) if comps is not None else None
+        if comps is not None and row is not None:
+            z = max(float(comps["_z_synopsis"][row]), float(comps["_z_keyword"][row]))
+            conf = max(conf, 1.0 / (1.0 + math.exp(-0.85 * (z - 1.4))))
+        return int(round(100.0 * conf))
+
     def _signal_contributions(self, tmdb_id: int, ctx: dict) -> dict[str, float]:
         """Contribuição (já ponderada) de cada sinal para o score deste filme.
 
@@ -558,6 +694,7 @@ class SearchEngine:
         """Explicação estruturada de por que o filme ficou nesta posição."""
         exp: dict[str, Any] = {
             "relevance": self._relevance(score, pool_lo, pool_hi),
+            "confidence": self._confidence(tmdb_id, ctx),
             "position": position,
             "signals": self._normalize_contributions(self._signal_contributions(tmdb_id, ctx)),
             "matched_keywords": self._matched_keywords(tmdb_id, ctx.get("q_emb")),
@@ -663,9 +800,12 @@ class SearchEngine:
                          ) -> tuple[list[tuple[int, float]], dict]:
         """Ranqueia por sinopse; em 'auto' (blend_name) funde também o nome.
         Devolve (scored, ctx) — ctx carrega os componentes p/ a explicação."""
-        q_emb = self._encode(query) if self._embeddings is not None else None
-        comps = self._synopsis_components(query, q_emb=q_emb)
-        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"]
+        # Embedding do lado-consulta usa a query LIMPA (mesmo texto do BM25 dentro
+        # de _synopsis_components); o nome usa a query original (casa títulos).
+        cq = clean_descriptive_query(query)
+        q_emb = self._encode(cq) if self._embeddings is not None else None
+        comps = self._synopsis_components(cq, q_emb=q_emb)
+        fused = comps["lexical"] + comps["synopsis"] + comps["keyword"] + comps["prior"]
         order = np.argsort(fused)[::-1]
 
         if not blend_name:
@@ -684,7 +824,15 @@ class SearchEngine:
         name_w, intent = self._intent_weight(best_title, self._adaptive_name_weight(query))
         syn_w = 1.0 - name_w
         row = self._row_index
-        cand_ids = {int(self._movie_ids[i]) for i in order[: n * 4]} | set(name_scores)
+        # Candidatos: top do fundido ∪ top de CADA sinal (sinopse/keyword) ∪ nome.
+        # O pool por sinal resgata um match forte num único sinal (ex.: Frozen no
+        # sinal temático) que a fusão sozinha deixaria fora da janela de re-rank.
+        per_signal_k = max(n * 4, 80)
+        cand_ids = {int(self._movie_ids[i]) for i in order[: n * 4]}
+        for sig in ("synopsis", "keyword"):
+            sig_order = np.argsort(comps[sig])[::-1][:per_signal_k]
+            cand_ids |= {int(self._movie_ids[i]) for i in sig_order}
+        cand_ids |= set(name_scores)
         syn_raw = {tid: float(fused[row[tid]]) if tid in row else float(fused.min())
                    for tid in cand_ids}
         lo, hi = min(syn_raw.values()), max(syn_raw.values())
@@ -706,6 +854,18 @@ class SearchEngine:
                 if self._movie_ids is not None else {}
             )
         return self._row_index_cache
+
+    @property
+    def _pop_prior_vec(self) -> np.ndarray:
+        """z-score de log(1+vote_count), alinhado a self._movie_ids (cacheado)."""
+        if self._pop_prior_cache is None:
+            if self._movie_ids is None:
+                return np.zeros(0)
+            votec = np.array(
+                [float(self.catalog.get(int(t), {}).get("vote_count") or 0.0)
+                 for t in self._movie_ids], dtype=np.float64)
+            self._pop_prior_cache = _zscore(np.log1p(votec))
+        return self._pop_prior_cache
 
     def _movies_by_person_name(self, name: str, role: Optional[str]) -> set[int]:
         """tmdb_ids dos filmes de uma pessoa (nome exato), opcionalmente por papel."""
@@ -729,8 +889,9 @@ class SearchEngine:
         Devolve (scored, ctx) para a explicação."""
         from rapidfuzz import fuzz
 
-        q_emb = self._encode(query) if self._embeddings is not None else None
-        comps = self._synopsis_components(query, q_emb=q_emb) if self.has_synopsis_index else None
+        cq = clean_descriptive_query(query)  # mesma query limpa p/ embedding e BM25
+        q_emb = self._encode(cq) if self._embeddings is not None else None
+        comps = self._synopsis_components(cq, q_emb=q_emb) if self.has_synopsis_index else None
         row = self._row_index
 
         qk = _name_key(query)

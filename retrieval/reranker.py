@@ -1,11 +1,11 @@
-"""Re-ranker cross-encoder â€” 2Âº estÃ¡gio da recuperaÃ§Ã£o.
+"""Re-ranker cross-encoder — 2º estágio da recuperação.
 
-A 1Âª etapa (BM25 + embeddings, fusÃ£o z-score) Ã© um *bi-encoder*: rÃ¡pida, varre os
-22k, mas compara query e documento separadamente. O cross-encoder lÃª **query e
-sinopse juntas** e dÃ¡ um score de relevÃ¢ncia muito mais fino â€” caro demais para os
-22k, mas barato sobre o top-K candidato. PadrÃ£o clÃ¡ssico *retrieve-and-rerank*.
+A 1ª etapa (BM25 + embeddings, fusão z-score) é um *bi-encoder*: rápida, varre os
+22k, mas compara query e documento separadamente. O cross-encoder lê **query e
+sinopse juntas** e dá um score de relevância muito mais fino — caro demais para os
+22k, mas barato sobre o top-K candidato. Padrão clássico *retrieve-and-rerank*.
 
-Modelo default: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (MS MARCO multilÃ­ngue,
+Modelo default: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (MS MARCO multilíngue,
 inclui PT; ~120 MB; roda bem em CPU/MPS/CUDA).
 """
 
@@ -42,11 +42,11 @@ class CrossEncoderReranker:
     def rerank(self, query: str, cand_ids: list[int], text_of: Callable[[int], str],
                retr_scores: Optional[dict[int, float]] = None,
                blend: float = 0.0) -> list[tuple[int, float]]:
-        """Reordena `cand_ids` pela relevÃ¢ncia cross-encoder de (query, texto).
+        """Reordena `cand_ids` pela relevância cross-encoder de (query, texto).
 
         `text_of(tmdb_id)` -> passagem (sinopse). `blend` (0..1) mistura o score
-        do cross-encoder (normalizado) com o score da 1Âª etapa (`retr_scores`);
-        0 = sÃ³ cross-encoder. Devolve [(tmdb_id, score)] jÃ¡ ordenado.
+        do cross-encoder (normalizado) com o score da 1ª etapa (`retr_scores`);
+        0 = só cross-encoder. Devolve [(tmdb_id, score)] já ordenado.
         """
         if not cand_ids:
             return []

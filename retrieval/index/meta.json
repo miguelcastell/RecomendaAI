@@ -1,0 +1,18 @@
+{
+  "n_movies": 22029,
+  "lexical": "bm25",
+  "bm25_vocab_size": 50232,
+  "bm25_k1": 1.5,
+  "bm25_b": 0.75,
+  "bm25_build_secs": 1.1,
+  "has_embeddings": true,
+  "has_keyword_embeddings": true,
+  "has_keyword_terms": true,
+  "embed_model": "intfloat/multilingual-e5-large",
+  "embed_dim": 1024,
+  "built_at": 1782242405,
+  "embed_query_prefix": "query: ",
+  "embed_passage_prefix": "passage: ",
+  "n_keyword_terms": 22939,
+  "embed_build_secs": 1323.7
+}

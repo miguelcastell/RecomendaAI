@@ -1,14 +1,14 @@
-"""Query-SLM opcional: traduz a consulta PTâ†’EN com uma SLM instruct local.
+"""Query-SLM opcional: traduz a consulta PT→EN com uma SLM instruct local.
 
-As keywords da TMDB sÃ£o em inglÃªs; traduzir a consulta e usar a versÃ£o EN no
-**sinal de keyword** aproxima a consulta desse espaÃ§o. Medido no harness de 52
-casos (empilhado com o re-ranker): MRR 0.577 â†’ 0.589, hits@10 43 â†’ 44.
+As keywords da TMDB são em inglês; traduzir a consulta e usar a versão EN no
+**sinal de keyword** aproxima a consulta desse espaço. Medido no harness de 52
+casos (empilhado com o re-ranker): MRR 0.577 → 0.589, hits@10 43 → 44.
 
-**Off por padrÃ£o** (`RECOMENDAI_QUERY_SLM=1` liga) â€” custa um modelo de ~3 GB e
-~0.6 s/consulta, para um ganho modesto. SÃ³ **traduzimos**: enriquecer com "tropes"
-de gÃªnero foi testado e PIORA (a SLM alucina termos e injeta ruÃ­do).
+**Off por padrão** (`RECOMENDAI_QUERY_SLM=1` liga) — custa um modelo de ~3 GB e
+~0.6 s/consulta, para um ganho modesto. Só **traduzimos**: enriquecer com "tropes"
+de gênero foi testado e PIORA (a SLM alucina termos e injeta ruído).
 
-Auto-seleciona device CUDA â†’ MPS â†’ CPU. Degrada em silÃªncio se o modelo faltar.
+Auto-seleciona device CUDA → MPS → CPU. Degrada em silêncio se o modelo faltar.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ _SYSTEM = ("Translate the movie plot description to concise English. "
 
 
 class QueryExpander:
-    """Traduz a consulta PTâ†’EN com uma SLM instruct (carregada sob demanda)."""
+    """Traduz a consulta PT→EN com uma SLM instruct (carregada sob demanda)."""
 
     def __init__(self, model_name: str = DEFAULT_QUERY_SLM, device: Optional[str] = None,
                  max_new_tokens: int = 80):
@@ -48,7 +48,7 @@ class QueryExpander:
         return self._model
 
     def translate(self, query: str) -> str:
-        """TraduÃ§Ã£o EN concisa da consulta (cacheada por consulta)."""
+        """Tradução EN concisa da consulta (cacheada por consulta)."""
         if query in self._cache:
             return self._cache[query]
         model = self._load()
